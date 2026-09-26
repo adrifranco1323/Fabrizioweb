@@ -12,8 +12,11 @@
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
     "@tailwindcss/vite": "^4.3.3",
-    "firebase": "^12.18.0",
-    "lucide-react": "^1.42.0",
+    "csv-parser": "^3.2.1",
+    "firebase": "^12.19.0",
+    "html2canvas-pro": "^2.4.4",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^1.44.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
