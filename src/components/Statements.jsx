@@ -357,10 +357,10 @@ export default function Statements() {
 
       {/* Tarjetas Resumen */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0">
-          <div className="flex justify-between items-center text-slate-400 mb-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider">Opening Balance</span>
+        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-slate-400 mb-2">
             <Wallet className={`h-4 w-4 shrink-0 ${openingBalanceUSD >= 0 ? 'text-slate-300' : 'text-rose-400'}`} />
+            <span className="text-[11px] font-medium uppercase tracking-wider">Opening Balance</span>
           </div>
           <div className={`text-lg font-black whitespace-nowrap ${openingBalanceUSD >= 0 ? 'text-slate-100' : 'text-rose-400'}`}>
             {openingBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(openingBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -368,10 +368,10 @@ export default function Statements() {
           <span className="text-[11px] text-slate-400 mt-1 block">Balance before {startDate}</span>
         </div>
 
-        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0">
-          <div className="flex justify-between items-center text-slate-400 mb-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider">Income for the Period</span>
+        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-slate-400 mb-2">
             <ArrowDownLeft className="h-4 w-4 shrink-0 text-emerald-400" />
+            <span className="text-[11px] font-medium uppercase tracking-wider">Income for the Period</span>
           </div>
           <div className="text-lg font-black whitespace-nowrap text-emerald-400">
             + $ {totalIncomeUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -379,10 +379,10 @@ export default function Statements() {
           <span className="text-[11px] text-slate-400 mt-1 block">{incomeList.length} deposits recorded</span>
         </div>
 
-        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0">
-          <div className="flex justify-between items-center text-slate-400 mb-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider">Expenses for the Period</span>
+        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-slate-400 mb-2">
             <ArrowUpRight className="h-4 w-4 shrink-0 text-rose-400" />
+            <span className="text-[11px] font-medium uppercase tracking-wider">Expenses for the Period</span>
           </div>
           <div className="text-lg font-black whitespace-nowrap text-rose-400">
             - $ {totalExpenseUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -390,10 +390,10 @@ export default function Statements() {
           <span className="text-[11px] text-slate-400 mt-1 block">{expenseList.length} receipts paid</span>
         </div>
 
-        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0">
-          <div className="flex justify-between items-center text-slate-400 mb-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider">Net Balance for the Period</span>
+        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-slate-400 mb-2">
             <Wallet className={`h-4 w-4 shrink-0 ${netPeriodBalanceUSD >= 0 ? 'text-amber-400' : 'text-rose-400'}`} />
+            <span className="text-[11px] font-medium uppercase tracking-wider">Net Balance for the Period</span>
           </div>
           <div className={`text-lg font-black whitespace-nowrap ${netPeriodBalanceUSD >= 0 ? 'text-amber-400' : 'text-rose-400'}`}>
             {netPeriodBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(netPeriodBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -401,10 +401,10 @@ export default function Statements() {
           <span className="text-[11px] text-slate-400 mt-1 block">Income minus expenses for the period</span>
         </div>
 
-        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0">
-          <div className="flex justify-between items-center text-slate-400 mb-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider">Accumulated Balance</span>
+        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-slate-400 mb-2">
             <Wallet className={`h-4 w-4 shrink-0 ${accumulatedBalanceUSD >= 0 ? 'text-cyan-400' : 'text-rose-400'}`} />
+            <span className="text-[11px] font-medium uppercase tracking-wider">Accumulated Balance</span>
           </div>
           <div className={`text-lg font-black whitespace-nowrap ${accumulatedBalanceUSD >= 0 ? 'text-cyan-400' : 'text-rose-400'}`}>
             {accumulatedBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(accumulatedBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -585,18 +585,21 @@ export default function Statements() {
       {/* Plantilla blanca oculta, usada únicamente para generar el PDF */}
       <div className="fixed top-0 pointer-events-none" style={{ left: '-9999px' }}>
         <div ref={pdfTemplateRef} className="bg-white text-slate-900 w-200">
-          <div className="p-6 border-b-2 border-emerald-600">
-            <h1 className="text-xl font-bold">Fabrizio Property Management</h1>
-            <p className="text-sm font-semibold">
-              Account Statement: {selectedProperty?.name} (Owner: {selectedOwnerName})
-            </p>
-            <p className="text-xs text-slate-500">Period from {startDate} to {endDate}</p>
+          <div className="p-6 border-b-2 border-emerald-600 flex items-center gap-4">
+            <img src="/fae-logo.png" alt="FAE Property Solutions" className="h-16 w-16 object-contain" />
+            <div>
+              <h1 className="text-xl font-bold">FAE Property Solutions</h1>
+              <p className="text-sm font-semibold">
+                Account Statement: {selectedProperty?.name} (Owner: {selectedOwnerName})
+              </p>
+              <p className="text-xs text-slate-500">Period from {startDate} to {endDate}</p>
+            </div>
           </div>
 
           <div className="p-6 space-y-6">
             <div className="grid grid-cols-5 gap-3">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <div className="flex justify-between items-center text-slate-500 mb-2">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
+                <div className="flex justify-center items-center text-slate-500 mb-2">
                   <span className="text-[10px] font-medium uppercase tracking-wider">Opening Balance</span>
                 </div>
                 <div className={`text-base font-black whitespace-nowrap ${openingBalanceUSD >= 0 ? 'text-slate-700' : 'text-rose-600'}`}>
@@ -605,8 +608,8 @@ export default function Statements() {
                 <span className="text-[10px] text-slate-500 mt-1 block">Balance before {startDate}</span>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <div className="flex justify-between items-center text-slate-500 mb-2">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
+                <div className="flex justify-center items-center text-slate-500 mb-2">
                   <span className="text-[10px] font-medium uppercase tracking-wider">Income for the Period</span>
                 </div>
                 <div className="text-base font-black whitespace-nowrap text-emerald-600">
@@ -615,8 +618,8 @@ export default function Statements() {
                 <span className="text-[10px] text-slate-500 mt-1 block">{incomeList.length} deposits recorded</span>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <div className="flex justify-between items-center text-slate-500 mb-2">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
+                <div className="flex justify-center items-center text-slate-500 mb-2">
                   <span className="text-[10px] font-medium uppercase tracking-wider">Expenses for the Period</span>
                 </div>
                 <div className="text-base font-black whitespace-nowrap text-rose-600">
@@ -625,8 +628,8 @@ export default function Statements() {
                 <span className="text-[10px] text-slate-500 mt-1 block">{expenseList.length} receipts paid</span>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <div className="flex justify-between items-center text-slate-500 mb-2">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
+                <div className="flex justify-center items-center text-slate-500 mb-2">
                   <span className="text-[10px] font-medium uppercase tracking-wider">Net Balance for the Period</span>
                 </div>
                 <div className={`text-base font-black whitespace-nowrap ${netPeriodBalanceUSD >= 0 ? 'text-amber-600' : 'text-rose-600'}`}>
@@ -635,8 +638,8 @@ export default function Statements() {
                 <span className="text-[10px] text-slate-500 mt-1 block">Income minus expenses for the period</span>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <div className="flex justify-between items-center text-slate-500 mb-2">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
+                <div className="flex justify-center items-center text-slate-500 mb-2">
                   <span className="text-[10px] font-medium uppercase tracking-wider">Accumulated Balance</span>
                 </div>
                 <div className={`text-base font-black whitespace-nowrap ${accumulatedBalanceUSD >= 0 ? 'text-cyan-600' : 'text-rose-600'}`}>
