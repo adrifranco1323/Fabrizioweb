@@ -195,58 +195,58 @@ export default function OwnerStatementView({ propertyId, onLogout }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700/60 shadow-md">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0">
           <div className="flex justify-between items-center text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Opening Balance</span>
-            <Wallet className={`h-5 w-5 ${openingBalanceUSD >= 0 ? 'text-slate-300' : 'text-rose-400'}`} />
+            <span className="text-[11px] font-medium uppercase tracking-wider">Opening Balance</span>
+            <Wallet className={`h-4 w-4 shrink-0 ${openingBalanceUSD >= 0 ? 'text-slate-300' : 'text-rose-400'}`} />
           </div>
-          <div className={`text-2xl font-black ${openingBalanceUSD >= 0 ? 'text-slate-100' : 'text-rose-400'}`}>
-            {openingBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(openingBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+          <div className={`text-lg font-black whitespace-nowrap ${openingBalanceUSD >= 0 ? 'text-slate-100' : 'text-rose-400'}`}>
+            {openingBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(openingBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">Balance before {startDate}</span>
         </div>
 
-        <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700/60 shadow-md">
+        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0">
           <div className="flex justify-between items-center text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Income for the Period</span>
-            <ArrowDownLeft className="h-5 w-5 text-emerald-400" />
+            <span className="text-[11px] font-medium uppercase tracking-wider">Income for the Period</span>
+            <ArrowDownLeft className="h-4 w-4 shrink-0 text-emerald-400" />
           </div>
-          <div className="text-2xl font-black text-emerald-400">
-            + $ {totalIncomeUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+          <div className="text-lg font-black whitespace-nowrap text-emerald-400">
+            + $ {totalIncomeUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">{incomeList.length} deposits recorded</span>
         </div>
 
-        <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700/60 shadow-md">
+        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0">
           <div className="flex justify-between items-center text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Expenses for the Period</span>
-            <ArrowUpRight className="h-5 w-5 text-rose-400" />
+            <span className="text-[11px] font-medium uppercase tracking-wider">Expenses for the Period</span>
+            <ArrowUpRight className="h-4 w-4 shrink-0 text-rose-400" />
           </div>
-          <div className="text-2xl font-black text-rose-400">
-            - $ {totalExpenseUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+          <div className="text-lg font-black whitespace-nowrap text-rose-400">
+            - $ {totalExpenseUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">{expenseList.length} paid receipts</span>
         </div>
 
-        <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700/60 shadow-md">
+        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0">
           <div className="flex justify-between items-center text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Net Balance for the Period</span>
-            <Wallet className={`h-5 w-5 ${netPeriodBalanceUSD >= 0 ? 'text-amber-400' : 'text-rose-400'}`} />
+            <span className="text-[11px] font-medium uppercase tracking-wider">Net Balance for the Period</span>
+            <Wallet className={`h-4 w-4 shrink-0 ${netPeriodBalanceUSD >= 0 ? 'text-amber-400' : 'text-rose-400'}`} />
           </div>
-          <div className={`text-2xl font-black ${netPeriodBalanceUSD >= 0 ? 'text-amber-400' : 'text-rose-400'}`}>
-            {netPeriodBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(netPeriodBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+          <div className={`text-lg font-black whitespace-nowrap ${netPeriodBalanceUSD >= 0 ? 'text-amber-400' : 'text-rose-400'}`}>
+            {netPeriodBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(netPeriodBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">Income minus expenses for the period</span>
         </div>
 
-        <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700/60 shadow-md">
+        <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/60 shadow-md min-w-0">
           <div className="flex justify-between items-center text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Accumulated Balance</span>
-            <Wallet className={`h-5 w-5 ${accumulatedBalanceUSD >= 0 ? 'text-cyan-400' : 'text-rose-400'}`} />
+            <span className="text-[11px] font-medium uppercase tracking-wider">Accumulated Balance</span>
+            <Wallet className={`h-4 w-4 shrink-0 ${accumulatedBalanceUSD >= 0 ? 'text-cyan-400' : 'text-rose-400'}`} />
           </div>
-          <div className={`text-2xl font-black ${accumulatedBalanceUSD >= 0 ? 'text-cyan-400' : 'text-rose-400'}`}>
-            {accumulatedBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(accumulatedBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+          <div className={`text-lg font-black whitespace-nowrap ${accumulatedBalanceUSD >= 0 ? 'text-cyan-400' : 'text-rose-400'}`}>
+            {accumulatedBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(accumulatedBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">Balance carried forward through {endDate}</span>
         </div>
@@ -362,35 +362,35 @@ export default function OwnerStatementView({ propertyId, onLogout }) {
           </div>
 
           <div className="p-6 space-y-6">
-            <div className="grid grid-cols-5 gap-4">
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                <div className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-2">Opening Balance</div>
-                <div className={`text-2xl font-black ${openingBalanceUSD >= 0 ? 'text-slate-700' : 'text-rose-600'}`}>
-                  {openingBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(openingBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+            <div className="grid grid-cols-5 gap-3">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Opening Balance</div>
+                <div className={`text-base font-black whitespace-nowrap ${openingBalanceUSD >= 0 ? 'text-slate-700' : 'text-rose-600'}`}>
+                  {openingBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(openingBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                <div className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-2">Income for the Period</div>
-                <div className="text-2xl font-black text-emerald-600">
-                  + $ {totalIncomeUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Income for the Period</div>
+                <div className="text-base font-black whitespace-nowrap text-emerald-600">
+                  + $ {totalIncomeUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                <div className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-2">Expenses for the Period</div>
-                <div className="text-2xl font-black text-rose-600">
-                  - $ {totalExpenseUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Expenses for the Period</div>
+                <div className="text-base font-black whitespace-nowrap text-rose-600">
+                  - $ {totalExpenseUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                <div className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-2">Net Balance</div>
-                <div className={`text-2xl font-black ${netPeriodBalanceUSD >= 0 ? 'text-amber-600' : 'text-rose-600'}`}>
-                  {netPeriodBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(netPeriodBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Net Balance</div>
+                <div className={`text-base font-black whitespace-nowrap ${netPeriodBalanceUSD >= 0 ? 'text-amber-600' : 'text-rose-600'}`}>
+                  {netPeriodBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(netPeriodBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                <div className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-2">Accumulated Balance</div>
-                <div className={`text-2xl font-black ${accumulatedBalanceUSD >= 0 ? 'text-cyan-600' : 'text-rose-600'}`}>
-                  {accumulatedBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(accumulatedBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Accumulated Balance</div>
+                <div className={`text-base font-black whitespace-nowrap ${accumulatedBalanceUSD >= 0 ? 'text-cyan-600' : 'text-rose-600'}`}>
+                  {accumulatedBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(accumulatedBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
             </div>
