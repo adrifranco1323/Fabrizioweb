@@ -14,7 +14,7 @@ export default function ExpenseForm({ onExpenseAdded }) {
   const [providerId, setProviderId] = useState('')
   const [currency, setCurrency] = useState('CRC')
   const [amount, setAmount] = useState('')
-  const [exchangeRate, setExchangeRate] = useState(440)
+  const [exchangeRate, setExchangeRate] = useState('440')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(false)
@@ -35,12 +35,14 @@ export default function ExpenseForm({ onExpenseAdded }) {
         // 2. Cargar Propiedades
         const propSnap = await getDocs(collection(db, 'properties'))
         const propList = propSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        propList.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }))
         setProperties(propList)
         if (propList.length > 0) setPropertyId(propList[0].id)
 
         // 3. Cargar Proveedores
         const provSnap = await getDocs(collection(db, 'providers'))
         const provList = provSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        provList.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }))
         setProviders(provList)
       } catch (e) {
         console.log('Error cargando datos auxiliares:', e)
@@ -54,7 +56,7 @@ export default function ExpenseForm({ onExpenseAdded }) {
         const data = await response.json()
         const rate = data?.rates?.CRC
         if (rate) {
-          setExchangeRate(rate)
+          setExchangeRate(String(rate))
         }
       } catch (error) {
         console.log('Usando tipo de cambio por defecto', error)
@@ -84,8 +86,9 @@ export default function ExpenseForm({ onExpenseAdded }) {
       }
 
       const numericAmount = parseFloat(amount)
-      let amountCRC = currency === 'CRC' ? numericAmount : numericAmount * exchangeRate
-      let amountUSD = currency === 'USD' ? numericAmount : numericAmount / exchangeRate
+      const rate = parseFloat(exchangeRate) || 440
+      let amountCRC = currency === 'CRC' ? numericAmount : numericAmount * rate
+      let amountUSD = currency === 'USD' ? numericAmount : numericAmount / rate
 
       const targetCollection = movementType === 'income' ? 'incomes' : 'expenses'
 
@@ -103,7 +106,7 @@ export default function ExpenseForm({ onExpenseAdded }) {
         payload.providerId = providerId || null
         payload.currency = currency
         payload.originalAmount = numericAmount
-        payload.exchangeRate = currency === 'USD' ? exchangeRate : null
+        payload.exchangeRate = currency === 'USD' ? rate : null
       }
 
       await addDoc(collection(db, targetCollection), payload)
@@ -122,8 +125,8 @@ export default function ExpenseForm({ onExpenseAdded }) {
     }
   }
 
-  const calculatedCRC = currency === 'CRC' && amount ? parseFloat(amount) : (amount ? parseFloat(amount) * exchangeRate : 0)
-  const calculatedUSD = currency === 'USD' && amount ? parseFloat(amount) : (amount ? parseFloat(amount) / exchangeRate : 0)
+  const calculatedCRC = currency === 'CRC' && amount ? parseFloat(amount) : (amount ? parseFloat(amount) * (parseFloat(exchangeRate) || 0) : 0)
+  const calculatedUSD = currency === 'USD' && amount ? parseFloat(amount) : (amount ? parseFloat(amount) / (parseFloat(exchangeRate) || 1) : 0)
 
   return (
     <div className="rounded-2xl bg-slate-800 p-6 border border-slate-700 max-w-2xl mx-auto shadow-xl">
@@ -272,7 +275,7 @@ export default function ExpenseForm({ onExpenseAdded }) {
             <input
               type="number"
               value={exchangeRate}
-              onChange={(e) => setExchangeRate(parseFloat(e.target.value) || 0)}
+              onChange={(e) => setExchangeRate(e.target.value)}
               className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-center font-semibold text-white ml-1 inline-block"
             />
           </div>

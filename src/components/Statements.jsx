@@ -25,6 +25,7 @@ export default function Statements() {
   // Datos
   const [incomeList, setIncomeList] = useState([])
   const [expenseList, setExpenseList] = useState([])
+  const [openingBalanceUSD, setOpeningBalanceUSD] = useState(0)
   const [loading, setLoading] = useState(false)
   const [generatingPdf, setGeneratingPdf] = useState(false)
   const pdfTemplateRef = useRef(null)
@@ -67,15 +68,14 @@ export default function Statements() {
       // 2. Cargar Propiedades
       const propSnap = await getDocs(collection(db, 'properties'))
       const propList = propSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      propList.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }))
       setProperties(propList)
-      if (propList.length > 0 && !selectedPropertyId) {
-        setSelectedPropertyId(propList[0].id)
-      }
 
       // 3. Cargar Proveedores
       try {
         const provSnap = await getDocs(collection(db, 'providers'))
         const provList = provSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        provList.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }))
         setProviders(provList)
       } catch (e) {
         console.log('No providers collection yet')
@@ -90,7 +90,12 @@ export default function Statements() {
   }, [])
 
   const loadFinancialData = async () => {
-    if (!selectedPropertyId) return
+    if (!selectedPropertyId) {
+      setExpenseList([])
+      setIncomeList([])
+      setOpeningBalanceUSD(0)
+      return
+    }
     setLoading(true)
     try {
       // 1. Obtener todos los gastos de la propiedad
@@ -109,15 +114,24 @@ export default function Statements() {
       const filteredExp = allExpenses.filter(e => {
         if (!e.date) return true
         return e.date >= startDate && e.date <= endDate
-      }).sort((a, b) => new Date(b.date) - new Date(a.date))
+      }).sort((a, b) => new Date(a.date) - new Date(b.date))
 
       const filteredInc = allIncome.filter(i => {
         if (!i.date) return true
         return i.date >= startDate && i.date <= endDate
-      }).sort((a, b) => new Date(b.date) - new Date(a.date))
+      }).sort((a, b) => new Date(a.date) - new Date(b.date))
 
       setExpenseList(filteredExp)
       setIncomeList(filteredInc)
+
+      // 4. Saldo acumulado: movimientos anteriores al periodo + balance neto del periodo
+      const priorIncomeUSD = allIncome
+        .filter(i => i.date && i.date < startDate)
+        .reduce((acc, curr) => acc + (Number(curr.amountUSD) || 0), 0)
+      const priorExpenseUSD = allExpenses
+        .filter(e => e.date && e.date < startDate)
+        .reduce((acc, curr) => acc + (Number(curr.amountUSD) || 0), 0)
+      setOpeningBalanceUSD(priorIncomeUSD - priorExpenseUSD)
 
     } catch (error) {
       console.error('Error al cargar transacciones:', error)
@@ -221,6 +235,7 @@ export default function Statements() {
   const totalExpenseUSD = expenseList.reduce((acc, curr) => acc + (Number(curr.amountUSD) || 0), 0)
   
   const netPeriodBalanceUSD = totalIncomeUSD - totalExpenseUSD
+  const accumulatedBalanceUSD = openingBalanceUSD + netPeriodBalanceUSD
 
   const handleDownloadPDF = async () => {
     if (!pdfTemplateRef.current) return
@@ -299,6 +314,7 @@ export default function Statements() {
                 onChange={(e) => setSelectedPropertyId(e.target.value)}
                 className="w-full sm:w-64 rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-sm font-semibold text-white focus:outline-none"
               >
+                <option value="">Select a property...</option>
                 {properties.map(p => {
                   const owner = clients[p.clientId] || p.ownerName || p.owner || 'No owner'
                   return (
@@ -340,7 +356,7 @@ export default function Statements() {
       <div className="space-y-6">
 
       {/* Tarjetas Resumen */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700/60 shadow-md">
           <div className="flex justify-between items-center text-slate-400 mb-2">
             <span className="text-xs font-medium uppercase tracking-wider">Income for the Period</span>
@@ -372,6 +388,17 @@ export default function Statements() {
             {netPeriodBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(netPeriodBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">Income minus expenses for the period</span>
+        </div>
+
+        <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700/60 shadow-md">
+          <div className="flex justify-between items-center text-slate-400 mb-2">
+            <span className="text-xs font-medium uppercase tracking-wider">Accumulated Balance</span>
+            <Wallet className={`h-5 w-5 ${accumulatedBalanceUSD >= 0 ? 'text-cyan-400' : 'text-rose-400'}`} />
+          </div>
+          <div className={`text-2xl font-black ${accumulatedBalanceUSD >= 0 ? 'text-cyan-400' : 'text-rose-400'}`}>
+            {accumulatedBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(accumulatedBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+          </div>
+          <span className="text-[11px] text-slate-400 mt-1 block">Balance carried forward through {endDate}</span>
         </div>
       </div>
 
@@ -556,7 +583,7 @@ export default function Statements() {
           </div>
 
           <div className="p-6 space-y-6">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
                 <div className="flex justify-between items-center text-slate-500 mb-2">
                   <span className="text-xs font-medium uppercase tracking-wider">Income for the Period</span>
@@ -585,6 +612,16 @@ export default function Statements() {
                   {netPeriodBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(netPeriodBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
                 </div>
                 <span className="text-[11px] text-slate-500 mt-1 block">Income minus expenses for the period</span>
+              </div>
+
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                <div className="flex justify-between items-center text-slate-500 mb-2">
+                  <span className="text-xs font-medium uppercase tracking-wider">Accumulated Balance</span>
+                </div>
+                <div className={`text-2xl font-black ${accumulatedBalanceUSD >= 0 ? 'text-cyan-600' : 'text-rose-600'}`}>
+                  {accumulatedBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(accumulatedBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                </div>
+                <span className="text-[11px] text-slate-500 mt-1 block">Balance carried forward through {endDate}</span>
               </div>
             </div>
 
@@ -774,8 +811,8 @@ export default function Statements() {
                   <span className="text-slate-500">Exchange Rate: </span>
                   <input
                     type="number"
-                    value={editingItem.exchangeRate || 440}
-                    onChange={(e) => setEditingItem({ ...editingItem, exchangeRate: parseFloat(e.target.value) || 0 })}
+                    value={editingItem.exchangeRate ?? ''}
+                    onChange={(e) => setEditingItem({ ...editingItem, exchangeRate: e.target.value })}
                     className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-center font-semibold text-white ml-1 inline-block"
                   />
                 </div>
