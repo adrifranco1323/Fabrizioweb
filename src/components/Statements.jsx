@@ -585,18 +585,94 @@ export default function Statements() {
       {/* Plantilla blanca oculta, usada únicamente para generar el PDF */}
       <div className="fixed top-0 pointer-events-none" style={{ left: '-9999px' }}>
         <div ref={pdfTemplateRef} className="bg-white text-slate-900 w-200">
-          <div className="p-6 border-b-2 border-emerald-600 flex items-center gap-4">
-            <img src="/fae-logo.png" alt="FAE Property Solutions" className="h-16 w-16 object-contain" />
+          <div className="p-8 border-b-2 border-emerald-600 flex items-center gap-5">
+            <img src="/fae-logo.png" alt="FAE Property Solutions" className="h-20 w-20 object-contain" />
             <div>
-              <h1 className="text-xl font-bold">FAE Property Solutions</h1>
-              <p className="text-sm font-semibold">
+              <h1 className="text-2xl font-bold">FAE Property Solutions</h1>
+              <p className="text-lg font-semibold">
                 Account Statement: {selectedProperty?.name} (Owner: {selectedOwnerName})
               </p>
-              <p className="text-xs text-slate-500">Period from {startDate} to {endDate}</p>
+              <p className="text-sm text-slate-500">Period from {startDate} to {endDate}</p>
             </div>
           </div>
 
           <div className="p-6 space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="p-4 bg-slate-50 border-b border-slate-200">
+                <h3 className="text-sm font-bold text-emerald-700">Income / Deposits</h3>
+              </div>
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-100 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200">
+                  <tr>
+                    <th className="py-2.5 px-4">Date</th>
+                    <th className="py-2.5 px-4">Description</th>
+                    <th className="py-2.5 px-4">Amount ($ USD)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {incomeList.map((inc) => (
+                    <tr key={inc.id}>
+                      <td className="py-2.5 px-4 whitespace-nowrap text-slate-500">{inc.date || 'N/A'}</td>
+                      <td className="py-2.5 px-4 font-semibold text-slate-900">{inc.description}</td>
+                      <td className="py-2.5 px-4 font-bold text-emerald-700">
+                        + $ {Number(inc.amountUSD || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))}
+                  {incomeList.length === 0 && (
+                    <tr><td colSpan={3} className="py-4 px-4 text-center text-slate-400">No deposits in this period.</td></tr>
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 border-t-2 border-slate-200">
+                    <td colSpan={2} className="py-2.5 px-4 font-bold text-slate-700 text-right">Total Income</td>
+                    <td className="py-2.5 px-4 font-black text-emerald-700">
+                      + $ {totalIncomeUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="p-4 bg-slate-50 border-b border-slate-200">
+                <h3 className="text-sm font-bold text-rose-700">Expenses / Services</h3>
+              </div>
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-100 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200">
+                  <tr>
+                    <th className="py-2.5 px-4">Date</th>
+                    <th className="py-2.5 px-4">Description</th>
+                    <th className="py-2.5 px-4">Provider</th>
+                    <th className="py-2.5 px-4">Amount ($ USD)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {expenseList.map((exp) => (
+                    <tr key={exp.id}>
+                      <td className="py-2.5 px-4 whitespace-nowrap text-slate-500">{exp.date || 'N/A'}</td>
+                      <td className="py-2.5 px-4 font-semibold text-slate-900">{exp.description}</td>
+                      <td className="py-2.5 px-4 text-slate-600">{providers.find(pr => pr.id === exp.providerId)?.name || 'N/A'}</td>
+                      <td className="py-2.5 px-4 font-bold text-rose-700">
+                        - $ {Number(exp.amountUSD || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))}
+                  {expenseList.length === 0 && (
+                    <tr><td colSpan={4} className="py-4 px-4 text-center text-slate-400">No expenses in this period.</td></tr>
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 border-t-2 border-slate-200">
+                    <td colSpan={3} className="py-2.5 px-4 font-bold text-slate-700 text-right">Total Expenses</td>
+                    <td className="py-2.5 px-4 font-black text-rose-700">
+                      - $ {totalExpenseUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
             <div className="grid grid-cols-5 gap-3">
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
                 <div className="flex justify-center items-center text-slate-500 mb-2">
@@ -647,66 +723,6 @@ export default function Statements() {
                 </div>
                 <span className="text-[10px] text-slate-500 mt-1 block">Balance carried forward through {endDate}</span>
               </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-              <div className="p-4 bg-slate-50 border-b border-slate-200">
-                <h3 className="text-sm font-bold text-emerald-700">Income / Deposits</h3>
-              </div>
-              <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-100 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200">
-                  <tr>
-                    <th className="py-2.5 px-4">Date</th>
-                    <th className="py-2.5 px-4">Description</th>
-                    <th className="py-2.5 px-4">Amount ($ USD)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {incomeList.map((inc) => (
-                    <tr key={inc.id}>
-                      <td className="py-2.5 px-4 whitespace-nowrap text-slate-500">{inc.date || 'N/A'}</td>
-                      <td className="py-2.5 px-4 font-semibold text-slate-900">{inc.description}</td>
-                      <td className="py-2.5 px-4 font-bold text-emerald-700">
-                        + $ {Number(inc.amountUSD || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  ))}
-                  {incomeList.length === 0 && (
-                    <tr><td colSpan={3} className="py-4 px-4 text-center text-slate-400">No deposits in this period.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-              <div className="p-4 bg-slate-50 border-b border-slate-200">
-                <h3 className="text-sm font-bold text-rose-700">Expenses / Services</h3>
-              </div>
-              <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-100 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200">
-                  <tr>
-                    <th className="py-2.5 px-4">Date</th>
-                    <th className="py-2.5 px-4">Description</th>
-                    <th className="py-2.5 px-4">Provider</th>
-                    <th className="py-2.5 px-4">Amount ($ USD)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {expenseList.map((exp) => (
-                    <tr key={exp.id}>
-                      <td className="py-2.5 px-4 whitespace-nowrap text-slate-500">{exp.date || 'N/A'}</td>
-                      <td className="py-2.5 px-4 font-semibold text-slate-900">{exp.description}</td>
-                      <td className="py-2.5 px-4 text-slate-600">{providers.find(pr => pr.id === exp.providerId)?.name || 'N/A'}</td>
-                      <td className="py-2.5 px-4 font-bold text-rose-700">
-                        - $ {Number(exp.amountUSD || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  ))}
-                  {expenseList.length === 0 && (
-                    <tr><td colSpan={4} className="py-4 px-4 text-center text-slate-400">No expenses in this period.</td></tr>
-                  )}
-                </tbody>
-              </table>
             </div>
           </div>
         </div>

@@ -37,7 +37,6 @@ export default function ExpenseForm({ onExpenseAdded }) {
         const propList = propSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         propList.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }))
         setProperties(propList)
-        if (propList.length > 0) setPropertyId(propList[0].id)
 
         // 3. Cargar Proveedores
         const provSnap = await getDocs(collection(db, 'providers'))
@@ -177,6 +176,7 @@ export default function ExpenseForm({ onExpenseAdded }) {
             onChange={(e) => setPropertyId(e.target.value)}
             className="w-full rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-sm text-white focus:outline-none"
           >
+            <option value="">Selecciona una casa...</option>
             {properties.map(p => {
               const owner = clients[p.clientId] || p.ownerName || p.owner || 'Sin dueño'
               return (

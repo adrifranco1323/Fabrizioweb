@@ -353,51 +353,18 @@ export default function OwnerStatementView({ propertyId, onLogout }) {
       {/* Hidden white template used only to generate the PDF */}
       <div className="fixed top-0 pointer-events-none" style={{ left: '-9999px' }}>
         <div ref={pdfTemplateRef} className="bg-white text-slate-900 w-200">
-          <div className="p-6 border-b-2 border-emerald-600 flex items-center gap-4">
-            <img src="/fae-logo.png" alt="FAE Property Solutions" className="h-16 w-16 object-contain" />
+          <div className="p-8 border-b-2 border-emerald-600 flex items-center gap-5">
+            <img src="/fae-logo.png" alt="FAE Property Solutions" className="h-20 w-20 object-contain" />
             <div>
-              <h1 className="text-xl font-bold">FAE Property Solutions</h1>
-              <p className="text-sm font-semibold">
+              <h1 className="text-2xl font-bold">FAE Property Solutions</h1>
+              <p className="text-lg font-semibold">
                 Account Statement: {property?.name} {ownerName ? `(Owner: ${ownerName})` : ''}
               </p>
-              <p className="text-xs text-slate-500">Period: {startDate} to {endDate}</p>
+              <p className="text-sm text-slate-500">Period: {startDate} to {endDate}</p>
             </div>
           </div>
 
           <div className="p-6 space-y-6">
-            <div className="grid grid-cols-5 gap-3">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Opening Balance</div>
-                <div className={`text-base font-black whitespace-nowrap ${openingBalanceUSD >= 0 ? 'text-slate-700' : 'text-rose-600'}`}>
-                  {openingBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(openingBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </div>
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Income for the Period</div>
-                <div className="text-base font-black whitespace-nowrap text-emerald-600">
-                  + $ {totalIncomeUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </div>
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Expenses for the Period</div>
-                <div className="text-base font-black whitespace-nowrap text-rose-600">
-                  - $ {totalExpenseUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </div>
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Net Balance</div>
-                <div className={`text-base font-black whitespace-nowrap ${netPeriodBalanceUSD >= 0 ? 'text-amber-600' : 'text-rose-600'}`}>
-                  {netPeriodBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(netPeriodBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </div>
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Accumulated Balance</div>
-                <div className={`text-base font-black whitespace-nowrap ${accumulatedBalanceUSD >= 0 ? 'text-cyan-600' : 'text-rose-600'}`}>
-                  {accumulatedBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(accumulatedBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </div>
-            </div>
-
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
               <div className="p-4 bg-slate-50 border-b border-slate-200">
                 <h3 className="text-sm font-bold text-emerald-700">Income / Contributions</h3>
@@ -424,6 +391,14 @@ export default function OwnerStatementView({ propertyId, onLogout }) {
                     <tr><td colSpan={3} className="py-4 px-4 text-center text-slate-400">No deposits for this period.</td></tr>
                   )}
                 </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 border-t-2 border-slate-200">
+                    <td colSpan={2} className="py-2.5 px-4 font-bold text-slate-700 text-right">Total Income</td>
+                    <td className="py-2.5 px-4 font-black text-emerald-700">
+                      + $ {totalIncomeUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
 
@@ -455,7 +430,48 @@ export default function OwnerStatementView({ propertyId, onLogout }) {
                     <tr><td colSpan={4} className="py-4 px-4 text-center text-slate-400">No expenses for this period.</td></tr>
                   )}
                 </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 border-t-2 border-slate-200">
+                    <td colSpan={3} className="py-2.5 px-4 font-bold text-slate-700 text-right">Total Expenses</td>
+                    <td className="py-2.5 px-4 font-black text-rose-700">
+                      - $ {totalExpenseUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
+            </div>
+
+            <div className="grid grid-cols-5 gap-3">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Opening Balance</div>
+                <div className={`text-base font-black whitespace-nowrap ${openingBalanceUSD >= 0 ? 'text-slate-700' : 'text-rose-600'}`}>
+                  {openingBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(openingBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Income for the Period</div>
+                <div className="text-base font-black whitespace-nowrap text-emerald-600">
+                  + $ {totalIncomeUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Expenses for the Period</div>
+                <div className="text-base font-black whitespace-nowrap text-rose-600">
+                  - $ {totalExpenseUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Net Balance</div>
+                <div className={`text-base font-black whitespace-nowrap ${netPeriodBalanceUSD >= 0 ? 'text-amber-600' : 'text-rose-600'}`}>
+                  {netPeriodBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(netPeriodBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">Accumulated Balance</div>
+                <div className={`text-base font-black whitespace-nowrap ${accumulatedBalanceUSD >= 0 ? 'text-cyan-600' : 'text-rose-600'}`}>
+                  {accumulatedBalanceUSD >= 0 ? '+' : '-'} $ {Math.abs(accumulatedBalanceUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
             </div>
           </div>
         </div>
