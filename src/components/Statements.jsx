@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { db, storage } from '../firebase/config'
 import { collection, getDocs, query, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
@@ -6,7 +7,7 @@ import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas-pro'
 import { 
   Building2, ArrowDownLeft, ArrowUpRight, Wallet, 
-  FileText, ExternalLink, Edit2, Trash2, X, Check, Printer, Upload, Calendar, Receipt
+  FileText, ExternalLink, Edit2, Trash2, X, Check, Printer, Upload, Calendar, Receipt, ArrowUp, ArrowDown, ArrowUpDown, ChevronDown
 } from 'lucide-react'
 
 export default function Statements() {
@@ -21,10 +22,14 @@ export default function Statements() {
   
   const [startDate, setStartDate] = useState(firstDayOfMonth)
   const [endDate, setEndDate] = useState(today)
+  const [selectedProviderIds, setSelectedProviderIds] = useState([])
+  const [sortField, setSortField] = useState('date')
+  const [sortDirection, setSortDirection] = useState('asc')
+  const [providerMenuPosition, setProviderMenuPosition] = useState(null)
 
   // Datos
-  const [incomeList, setIncomeList] = useState([])
-  const [expenseList, setExpenseList] = useState([])
+  const [allIncomeList, setAllIncomeList] = useState([])
+  const [allExpenseList, setAllExpenseList] = useState([])
   const [openingBalanceUSD, setOpeningBalanceUSD] = useState(0)
   const [loading, setLoading] = useState(false)
   const [generatingPdf, setGeneratingPdf] = useState(false)
@@ -91,8 +96,8 @@ export default function Statements() {
 
   const loadFinancialData = async () => {
     if (!selectedPropertyId) {
-      setExpenseList([])
-      setIncomeList([])
+      setAllExpenseList([])
+      setAllIncomeList([])
       setOpeningBalanceUSD(0)
       return
     }
@@ -121,8 +126,8 @@ export default function Statements() {
         return i.date >= startDate && i.date <= endDate
       }).sort((a, b) => new Date(a.date) - new Date(b.date))
 
-      setExpenseList(filteredExp)
-      setIncomeList(filteredInc)
+      setAllExpenseList(filteredExp)
+      setAllIncomeList(filteredInc)
 
       // 4. Saldo acumulado: movimientos anteriores al periodo + balance neto del periodo
       const priorIncomeUSD = allIncome
@@ -229,6 +234,62 @@ export default function Statements() {
 
   const selectedProperty = properties.find(p => p.id === selectedPropertyId)
   const selectedOwnerName = selectedProperty ? (clients[selectedProperty.clientId] || selectedProperty.ownerName || selectedProperty.owner || 'No owner assigned') : ''
+
+  const filterAndSortMovements = (items, type) => items
+    .filter(item => type !== 'expense' || selectedProviderIds.length === 0 || selectedProviderIds.includes(item.providerId))
+    .sort((a, b) => {
+      let comparison = 0
+      if (sortField === 'amount') {
+        comparison = (Number(a.amountUSD) || 0) - (Number(b.amountUSD) || 0)
+      } else if (sortField === 'description') {
+        comparison = (a.description || '').localeCompare(b.description || '', 'es', { sensitivity: 'base' })
+      } else if (sortField === 'provider') {
+        const providerA = providers.find(provider => provider.id === a.providerId)?.name || ''
+        const providerB = providers.find(provider => provider.id === b.providerId)?.name || ''
+        comparison = providerA.localeCompare(providerB, 'es', { sensitivity: 'base' })
+      } else {
+        comparison = (a.date || '').localeCompare(b.date || '')
+      }
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+
+  const incomeList = filterAndSortMovements(allIncomeList, 'income')
+  const expenseList = filterAndSortMovements(allExpenseList, 'expense')
+
+  const toggleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(direction => direction === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const openProviderMenu = (event) => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    setProviderMenuPosition({
+      top: bounds.bottom + 6,
+      left: Math.min(bounds.left, window.innerWidth - 260),
+    })
+  }
+
+  const SortHeader = ({ field, children, className = '' }) => {
+    const isActive = sortField === field
+    const DirectionIcon = isActive ? (sortDirection === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown
+    return (
+      <th className={`py-2.5 px-4 ${className}`}>
+        <button
+          type="button"
+          onClick={() => toggleSort(field)}
+          className="inline-flex items-center gap-1.5 hover:text-white"
+          aria-label={`Sort by ${children}, ${isActive && sortDirection === 'asc' ? 'descending' : 'ascending'}`}
+        >
+          {children}
+          <DirectionIcon className={`h-3.5 w-3.5 ${isActive ? 'text-emerald-400' : 'text-slate-500'}`} />
+        </button>
+      </th>
+    )
+  }
 
   // Cálculos Financieros
   const totalIncomeUSD = incomeList.reduce((acc, curr) => acc + (Number(curr.amountUSD) || 0), 0)
@@ -351,6 +412,7 @@ export default function Statements() {
             Showing from <strong className="text-white">{startDate}</strong> to <strong className="text-white">{endDate}</strong>
           </div>
         </div>
+
       </div>
 
       <div className="space-y-6">
@@ -431,9 +493,9 @@ export default function Statements() {
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-700">
                 <tr>
-                  <th className="py-2.5 px-4">Date</th>
-                  <th className="py-2.5 px-4">Description</th>
-                  <th className="py-2.5 px-4">Amount ($ USD)</th>
+                  <SortHeader field="date">Date</SortHeader>
+                  <SortHeader field="description">Description</SortHeader>
+                  <SortHeader field="amount">Amount ($ USD)</SortHeader>
                   <th className="py-2.5 px-4 text-center">Receipt</th>
                   <th className="py-2.5 px-4 text-right">Actions</th>
                 </tr>
@@ -513,10 +575,29 @@ export default function Statements() {
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-700">
                 <tr>
-                  <th className="py-2.5 px-4">Date</th>
-                  <th className="py-2.5 px-4">Description</th>
-                  <th className="py-2.5 px-4">Provider</th>
-                  <th className="py-2.5 px-4">Amount ($ USD)</th>
+                  <SortHeader field="date">Date</SortHeader>
+                  <SortHeader field="description">Description</SortHeader>
+                  <th className="py-2.5 px-4">
+                    <div className="inline-flex items-center gap-1.5">
+                      <button type="button" onClick={() => toggleSort('provider')} className="inline-flex items-center gap-1.5 hover:text-white">
+                        Provider
+                        {sortField === 'provider'
+                          ? (sortDirection === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-emerald-400" /> : <ArrowDown className="h-3.5 w-3.5 text-emerald-400" />)
+                          : <ArrowUpDown className="h-3.5 w-3.5 text-slate-500" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => providerMenuPosition ? setProviderMenuPosition(null) : openProviderMenu(event)}
+                        aria-label="Filter by provider"
+                        aria-expanded={Boolean(providerMenuPosition)}
+                        className="inline-flex items-center gap-1 rounded px-1 py-0.5 normal-case text-[10px] text-slate-300 hover:bg-slate-700 hover:text-white"
+                      >
+                        {selectedProviderIds.length ? selectedProviderIds.length : ''}
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </th>
+                  <SortHeader field="amount">Amount ($ USD)</SortHeader>
                   <th className="py-2.5 px-4 text-center">Receipt</th>
                   <th className="py-2.5 px-4 text-right">Actions</th>
                 </tr>
@@ -945,6 +1026,48 @@ export default function Statements() {
             </form>
           </div>
         </div>
+      )}
+
+      {providerMenuPosition && createPortal(
+        <>
+          <button
+            type="button"
+            aria-label="Close provider filter"
+            onClick={() => setProviderMenuPosition(null)}
+            className="fixed inset-0 z-60 cursor-default"
+          />
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{ top: providerMenuPosition.top, left: providerMenuPosition.left }}
+            className="fixed z-61 max-h-72 w-64 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-2 text-left normal-case shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-slate-700 px-2 pb-2">
+              <span className="text-xs font-semibold text-white">Filter providers</span>
+              <button
+                type="button"
+                onClick={() => setSelectedProviderIds([])}
+                className="text-[11px] text-emerald-400 hover:text-emerald-300"
+              >
+                All
+              </button>
+            </div>
+            {providers.map(provider => (
+              <label key={provider.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-xs text-slate-200 hover:bg-slate-800">
+                <input
+                  type="checkbox"
+                  checked={selectedProviderIds.includes(provider.id)}
+                  onChange={(event) => setSelectedProviderIds(current => event.target.checked
+                    ? [...current, provider.id]
+                    : current.filter(id => id !== provider.id))}
+                  className="accent-emerald-500"
+                />
+                {provider.name || 'Unnamed provider'}
+              </label>
+            ))}
+            {providers.length === 0 && <p className="px-2 py-2 text-xs text-slate-400">No providers available</p>}
+          </div>
+        </>,
+        document.body
       )}
 
     </div>
