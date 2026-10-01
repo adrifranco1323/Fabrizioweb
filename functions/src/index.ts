@@ -8,6 +8,9 @@
  */
 
 import {setGlobalOptions} from "firebase-functions";
+import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {initializeApp} from "firebase-admin/app";
+import {getAuth} from "firebase-admin/auth";
 // import {onRequest} from "firebase-functions/https";
 // import * as logger from "firebase-functions/logger";
 
@@ -26,7 +29,38 @@ import {setGlobalOptions} from "firebase-functions";
 // this will be the maximum concurrent request count.
 setGlobalOptions({maxInstances: 10});
 
+initializeApp();
+
+const INITIAL_ADMIN_UID = "Z1bcROoshfhExCgPhD1FWS8zDDp1";
+
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");
 // });
+
+// Solo un admin puede cambiar la contraseña de otro usuario (Firebase nunca expone
+// contraseñas en texto plano, ni siquiera al dueño del proyecto; esto es lo más
+// cercano a "gestionarlas" que permite la plataforma).
+export const adminSetUserPassword = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  }
+
+  if (callerUid !== INITIAL_ADMIN_UID) {
+    throw new HttpsError("permission-denied", "Solo un administrador puede cambiar contraseñas.");
+  }
+
+  const targetUid = request.data?.targetUid;
+  const newPassword = request.data?.newPassword;
+  if (typeof targetUid !== "string" || !targetUid) {
+    throw new HttpsError("invalid-argument", "Falta el usuario objetivo.");
+  }
+  if (typeof newPassword !== "string" || newPassword.length < 6) {
+    throw new HttpsError("invalid-argument", "La contraseña debe tener al menos 6 caracteres.");
+  }
+
+  await getAuth().updateUser(targetUid, {password: newPassword});
+  return {success: true};
+});
+

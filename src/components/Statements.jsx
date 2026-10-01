@@ -15,6 +15,7 @@ export default function Statements() {
   const [clients, setClients] = useState({})
   const [providers, setProviders] = useState([])
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
+  const endDateInputRef = useRef(null)
   
   // Filtros de fecha (Por defecto: mes actual)
   const today = new Date().toISOString().split('T')[0]
@@ -395,15 +396,26 @@ export default function Statements() {
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                const nextStartDate = e.target.value
+                setStartDate(nextStartDate)
+                if (endDate < nextStartDate) setEndDate(nextStartDate)
+                try {
+                  endDateInputRef.current?.showPicker()
+                } catch {
+                  endDateInputRef.current?.focus()
+                }
+              }}
               className="w-full rounded-xl border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:outline-none"
             />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-300">End Date</label>
             <input
+              ref={endDateInputRef}
               type="date"
               value={endDate}
+              min={startDate}
               onChange={(e) => setEndDate(e.target.value)}
               className="w-full rounded-xl border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:outline-none"
             />

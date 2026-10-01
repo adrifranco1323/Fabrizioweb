@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth'
 import { auth, db } from '../firebase/config'
 import { collection, getDocs, query, where } from 'firebase/firestore'
-import { LogIn, Lock, Mail, KeyRound, Home } from 'lucide-react'
+import { usernameToEmail } from '../utils/username'
+import { LogIn, Lock, User, KeyRound, Home } from 'lucide-react'
 
 export default function Login({ onLoginSuccess }) {
   const [mode, setMode] = useState('admin')
 
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -22,11 +23,11 @@ export default function Login({ onLoginSuccess }) {
     setLoading(true)
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      const userCredential = await signInWithEmailAndPassword(auth, usernameToEmail(username), password)
       if (onLoginSuccess) onLoginSuccess(userCredential.user)
     } catch (err) {
       console.error(err)
-      setError('Correo o contraseña incorrectos. Verifica tus credenciales.')
+      setError('Usuario o contraseña incorrectos. Verifica tus credenciales.')
     } finally {
       setLoading(false)
     }
@@ -97,15 +98,15 @@ export default function Login({ onLoginSuccess }) {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-300">Correo Electrónico</label>
+                <label className="mb-1 block text-xs font-medium text-slate-300">Usuario</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                  <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
                   <input
-                    type="email"
+                    type="text"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="usuario@dominio.com"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="usuario"
                     className="w-full rounded-xl border border-slate-700 bg-slate-900/50 py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
