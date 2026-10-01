@@ -7,6 +7,9 @@
   "dataconnect": {
     "source": "dataconnect"
   },
+  "functions": {
+    "source": "functions"
+  },
   "firestore": {
     "database": "(default)",
     "location": "nam5",
