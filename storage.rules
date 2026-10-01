@@ -3,7 +3,14 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null
+        && (request.auth.uid == 'Z1bcROoshfhExCgPhD1FWS8zDDp1'
+          || request.auth.token.role == 'admin'
+          || request.auth.token.role == 'assistant');
+      allow write: if request.auth != null
+        && (request.auth.uid == 'Z1bcROoshfhExCgPhD1FWS8zDDp1'
+          || request.auth.token.role == 'admin'
+          || request.auth.token.role == 'assistant');
     }
   }
 }

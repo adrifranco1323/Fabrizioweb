@@ -33,6 +33,7 @@ export default function CalendarView({ role }) {
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [properties, setProperties] = useState([])
   const [visits, setVisits] = useState([])
+  const [birthdays, setBirthdays] = useState([])
   const [calendarPropertyId, setCalendarPropertyId] = useState('')
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(toISODate(today))
@@ -51,11 +52,14 @@ export default function CalendarView({ role }) {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const propSnap = await getDocs(query(collection(db, 'properties'), orderBy('name', 'asc')))
+      const [propSnap, visitSnap, birthdaySnap] = await Promise.all([
+        getDocs(query(collection(db, 'propertyCalendarDirectory'), orderBy('name', 'asc'))),
+        getDocs(collection(db, 'visits')),
+        getDocs(collection(db, 'birthdays')),
+      ])
       setProperties(propSnap.docs.map(d => ({ id: d.id, ...d.data() })))
-
-      const visitSnap = await getDocs(collection(db, 'visits'))
       setVisits(visitSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+      setBirthdays(birthdaySnap.docs.map(d => ({ id: d.id, ...d.data() })))
     } catch (error) {
       console.error('Error al cargar el calendario:', error)
     } finally {
@@ -70,16 +74,14 @@ export default function CalendarView({ role }) {
   // Cumpleaños agrupados por "MM-DD" para comparar sin importar el año
   const birthdaysByMonthDay = useMemo(() => {
     const map = {}
-    properties.forEach(p => {
-      (p.birthdays || []).forEach(b => {
-        if (!b.date) return
-        const key = b.date.slice(5) // "MM-DD"
-        if (!map[key]) map[key] = []
-        map[key].push({ ...b, propertyId: p.id, propertyName: p.name })
-      })
+    birthdays.forEach(birthday => {
+      if (!birthday.date) return
+      const key = birthday.date.slice(5)
+      if (!map[key]) map[key] = []
+      map[key].push(birthday)
     })
     return map
-  }, [properties])
+  }, [birthdays])
 
   const getEventsForDay = (dateObj) => {
     const iso = toISODate(dateObj)

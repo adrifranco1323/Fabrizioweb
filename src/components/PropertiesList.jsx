@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { db } from '../firebase/config'
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from 'firebase/firestore'
+import { collection, getDocs, addDoc, updateDoc, doc, query, orderBy, serverTimestamp, where, writeBatch, deleteField } from 'firebase/firestore'
 import { Home, Plus, Edit2, Trash2, X, UserPlus, KeyRound, RefreshCw, Copy, Cake } from 'lucide-react'
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // sin 0/O/1/I para evitar confusiones
@@ -25,6 +25,7 @@ export default function PropertiesList() {
   const [newClient, setNewClient] = useState({ firstName: '', lastName: '', phone: '', email: '', cars: '' })
 
   const [selectedProperty, setSelectedProperty] = useState(null)
+  const [selectedPropertyBirthdays, setSelectedPropertyBirthdays] = useState([])
   const [editingId, setEditingId] = useState(null)
 
   const [name, setName] = useState('')
@@ -81,7 +82,7 @@ export default function PropertiesList() {
     setIsModalOpen(true)
   }
 
-  const handleOpenEdit = (p) => {
+  const handleOpenEdit = async (p) => {
     setEditingId(p.id)
     setName(p.name || '')
     setClientId(p.clientId || '')
@@ -95,8 +96,46 @@ export default function PropertiesList() {
     setCorpCed(p.corpCed || '')
     setCorpName(p.corpName || '')
     setBillingEmail(p.billingEmail || '')
-    setBirthdays(p.birthdays?.length ? p.birthdays : [])
+    try {
+      const birthdayQuery = query(collection(db, 'birthdays'), where('propertyId', '==', p.id))
+      const birthdaySnap = await getDocs(birthdayQuery)
+      const savedBirthdays = birthdaySnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => a.id.localeCompare(b.id))
+      setBirthdays(savedBirthdays.length ? savedBirthdays : (p.birthdays || []))
+    } catch {
+      setBirthdays(p.birthdays || [])
+    }
     setIsModalOpen(true)
+  }
+
+  const syncPropertyDirectories = async (id, propertyData) => {
+    const selectedClient = clients.find(client => client.id === propertyData.clientId)
+    const ownerName = selectedClient
+      ? `${selectedClient.firstName || ''} ${selectedClient.lastName || ''}`.trim()
+      : ''
+    const batch = writeBatch(db)
+    batch.set(doc(db, 'propertyCalendarDirectory', id), {
+      name: propertyData.name || 'Casa sin nombre',
+    })
+    batch.set(doc(db, 'propertyStatementDirectory', id), {
+      name: propertyData.name || 'Casa sin nombre',
+      ownerName,
+    })
+
+    const previousBirthdays = await getDocs(query(collection(db, 'birthdays'), where('propertyId', '==', id)))
+    previousBirthdays.docs.forEach(birthday => batch.delete(birthday.ref))
+    birthdays.filter(b => b.name.trim() || b.date).slice(0, MAX_BIRTHDAYS).forEach((birthday, index) => {
+      if (!birthday.date) return
+      batch.set(doc(db, 'birthdays', `${id}_${index}`), {
+        propertyId: id,
+        propertyName: propertyData.name || 'Casa sin nombre',
+        name: birthday.name.trim(),
+        date: birthday.date,
+        note: birthday.note?.trim() || '',
+      })
+    })
+    await batch.commit()
   }
 
   const handleSave = async (e) => {
@@ -125,19 +164,17 @@ export default function PropertiesList() {
       membersNum: membersNum ? membersNum.trim() : '',
       corpCed: corpCed ? corpCed.trim() : '',
       corpName: corpName ? corpName.trim() : '',
-      billingEmail: billingEmail ? billingEmail.trim() : '',
-      birthdays: birthdays
-        .filter(b => b.name.trim() || b.date)
-        .slice(0, MAX_BIRTHDAYS)
-        .map(b => ({ name: b.name.trim(), date: b.date, note: b.note ? b.note.trim() : '' }))
+      billingEmail: billingEmail ? billingEmail.trim() : ''
     }
 
     try {
       if (editingId) {
-        await updateDoc(doc(db, 'properties', editingId), payload)
+        await updateDoc(doc(db, 'properties', editingId), { ...payload, birthdays: deleteField() })
+        await syncPropertyDirectories(editingId, payload)
       } else {
         payload.createdAt = serverTimestamp()
-        await addDoc(collection(db, 'properties'), payload)
+        const propertyRef = await addDoc(collection(db, 'properties'), payload)
+        await syncPropertyDirectories(propertyRef.id, payload)
       }
       setIsModalOpen(false)
       fetchData()
@@ -175,12 +212,31 @@ export default function PropertiesList() {
   const handleDelete = async (id) => {
     if (confirm('¿Seguro que deseas eliminar esta casa?')) {
       try {
-        await deleteDoc(doc(db, 'properties', id))
+        const birthdaySnap = await getDocs(query(collection(db, 'birthdays'), where('propertyId', '==', id)))
+        const batch = writeBatch(db)
+        birthdaySnap.docs.forEach(birthday => batch.delete(birthday.ref))
+        batch.delete(doc(db, 'propertyCalendarDirectory', id))
+        batch.delete(doc(db, 'propertyStatementDirectory', id))
+        batch.delete(doc(db, 'properties', id))
+        await batch.commit()
         fetchData()
       } catch (error) {
         console.error("Error al eliminar:", error)
       }
     }
+  }
+
+  const handleOpenDetails = async (property) => {
+    setSelectedProperty(property)
+    try {
+      const birthdayQuery = query(collection(db, 'birthdays'), where('propertyId', '==', property.id))
+      const birthdaySnap = await getDocs(birthdayQuery)
+      setSelectedPropertyBirthdays(birthdaySnap.docs.map(birthday => birthday.data()))
+    } catch (error) {
+      console.error('Error al cargar cumpleaños:', error)
+      setSelectedPropertyBirthdays(property.birthdays || [])
+    }
+    setIsDetailsOpen(true)
   }
 
   const addBirthday = () => {
@@ -243,7 +299,7 @@ export default function PropertiesList() {
                     <span className="font-mono font-bold text-cyan-400 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs">{p.accessCode || 'N/A'}</span>
                   </td>
                   <td className="p-3 text-right space-x-1">
-                    <button onClick={() => { setSelectedProperty(p); setIsDetailsOpen(true); }} className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-cyan-400">Detalles</button>
+                    <button onClick={() => handleOpenDetails(p)} className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-cyan-400">Detalles</button>
                     <button onClick={() => handleOpenEdit(p)} className="p-1 text-amber-400 hover:bg-slate-700 rounded"><Edit2 className="h-4 w-4" /></button>
                     <button onClick={() => handleDelete(p.id)} className="p-1 text-red-400 hover:bg-slate-700 rounded"><Trash2 className="h-4 w-4" /></button>
                   </td>
@@ -276,7 +332,7 @@ export default function PropertiesList() {
 
               <div className="border-t border-slate-700 pt-3">
                 <div className="flex justify-between items-center mb-1">
-                  <label className="text-slate-300 font-bold text-emerald-400">Seleccionar Cliente</label>
+                  <label className="font-bold text-emerald-400">Seleccionar Cliente</label>
                   <button
                     type="button"
                     onClick={() => setIsClientModalOpen(true)}
@@ -481,7 +537,7 @@ export default function PropertiesList() {
 
                 <div className="bg-slate-900 p-3 rounded-xl border border-slate-700/50 space-y-1">
                   <p className="font-semibold text-emerald-400 mb-1 flex items-center gap-1.5"><Cake className="h-3.5 w-3.5" /> Cumpleaños</p>
-                  {selectedProperty.birthdays?.length ? selectedProperty.birthdays.map((b, idx) => (
+                  {selectedPropertyBirthdays.length ? selectedPropertyBirthdays.map((b, idx) => (
                     <p key={idx}><strong>{b.name || 'Sin nombre'}:</strong> {b.date || 'N/A'}{b.note ? ` — ${b.note}` : ''}</p>
                   )) : <p>No hay cumpleaños registrados.</p>}
                 </div>

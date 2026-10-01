@@ -48,19 +48,24 @@ export default function App() {
 
       if (currentUser && !currentUser.isAnonymous) {
         try {
-          const roleSnap = await getDoc(doc(db, 'users', currentUser.uid))
-          if (currentUser.uid === INITIAL_ADMIN_UID) {
-            if (!roleSnap.exists() || roleSnap.data().role !== 'admin') {
-              await setDoc(doc(db, 'users', currentUser.uid), {
-                username: emailToUsername(currentUser.email),
-                role: 'admin',
-              })
-            }
-            setRole('admin')
-          } else if (roleSnap.exists()) {
-            setRole(roleSnap.data().role || null)
+          const tokenResult = await currentUser.getIdTokenResult(true)
+          if (tokenResult.claims.role === 'owner') {
+            setRole('owner')
           } else {
-            setRole(null)
+            const roleSnap = await getDoc(doc(db, 'users', currentUser.uid))
+            if (currentUser.uid === INITIAL_ADMIN_UID) {
+              if (!roleSnap.exists() || roleSnap.data().role !== 'admin' || !roleSnap.data().username) {
+                await setDoc(doc(db, 'users', currentUser.uid), {
+                  username: emailToUsername(currentUser.email),
+                  role: 'admin',
+                }, { merge: true })
+              }
+              setRole('admin')
+            } else if (roleSnap.exists()) {
+              setRole(roleSnap.data().role || null)
+            } else {
+              setRole(null)
+            }
           }
         } catch (err) {
           console.error('Error al cargar el rol del usuario:', err)
@@ -100,7 +105,7 @@ export default function App() {
     return <Login />
   }
 
-  if (user.isAnonymous) {
+  if (user.isAnonymous || role === 'owner') {
     const ownerPropertyId = localStorage.getItem('ownerPropertyId')
     return (
       <OwnerStatementView
@@ -207,12 +212,12 @@ export default function App() {
           </button>
         </div>
         <div className="mx-auto max-w-5xl">
-          {safeActiveTab === 'statements' && <Statements />}
-          {safeActiveTab === 'expenses' && <ExpenseForm />}
+          {safeActiveTab === 'statements' && <Statements role={role} />}
+          {safeActiveTab === 'expenses' && <ExpenseForm role={role} />}
           {safeActiveTab === 'properties' && <PropertiesList />}
           {safeActiveTab === 'clients' && <ClientsList />}
           {safeActiveTab === 'contracts' && <ContractsInfo />}
-          {safeActiveTab === 'providers' && <ProvidersList />}
+          {safeActiveTab === 'providers' && <ProvidersList role={role} />}
           {safeActiveTab === 'calendar' && <CalendarView role={role} />}
           {safeActiveTab === 'users' && <UsersList />}
         </div>

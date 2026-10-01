@@ -8,7 +8,6 @@ export default function ExpenseForm({ onExpenseAdded }) {
   const [movementType, setMovementType] = useState('expense')
   const [propertyId, setPropertyId] = useState('')
   const [properties, setProperties] = useState([])
-  const [clients, setClients] = useState({})
   const [providers, setProviders] = useState([])
   const [description, setDescription] = useState('')
   const [providerId, setProviderId] = useState('')
@@ -23,17 +22,7 @@ export default function ExpenseForm({ onExpenseAdded }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. Cargar Clientes para armar el diccionario por ID
-        const clientSnap = await getDocs(collection(db, 'clients'))
-        const clientMap = {}
-        clientSnap.docs.forEach(doc => {
-          const data = doc.data()
-          clientMap[doc.id] = `${data.firstName || ''} ${data.lastName || ''}`.trim()
-        })
-        setClients(clientMap)
-
-        // 2. Cargar Propiedades
-        const propSnap = await getDocs(collection(db, 'properties'))
+        const propSnap = await getDocs(collection(db, 'propertyStatementDirectory'))
         const propList = propSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         propList.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }))
         setProperties(propList)
@@ -178,7 +167,7 @@ export default function ExpenseForm({ onExpenseAdded }) {
           >
             <option value="">Selecciona una casa...</option>
             {properties.map(p => {
-              const owner = clients[p.clientId] || p.ownerName || p.owner || 'Sin dueño'
+              const owner = p.ownerName || 'Sin dueño'
               return (
                 <option key={p.id} value={p.id}>
                   {p.name || 'Sin nombre'} — Dueño: {owner}

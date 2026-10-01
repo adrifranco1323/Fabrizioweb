@@ -11,7 +11,7 @@
     "source": "functions"
   },
   "firestore": {
-    "database": "(default)",
+    "database": "fabriziodb",
     "location": "nam5",
     "rules": "a",
     "indexes": "b"

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { db } from '../firebase/config'
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore'
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore'
 import { Users, Plus, Edit2, Trash2, X } from 'lucide-react'
 
-export default function ProvidersList() {
+export default function ProvidersList({ role }) {
   const [providers, setProviders] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -57,8 +57,10 @@ export default function ProvidersList() {
     const payload = { name, contactName, category, bank, currency, iban, phone, email }
     if (editingId) {
       await updateDoc(doc(db, 'providers', editingId), payload)
+      await setDoc(doc(db, 'providerDirectory', editingId), { name: name.trim() }, { merge: true })
     } else {
-      await addDoc(collection(db, 'providers'), payload)
+      const providerRef = await addDoc(collection(db, 'providers'), payload)
+      await setDoc(doc(db, 'providerDirectory', providerRef.id), { name: name.trim() })
     }
     setIsModalOpen(false)
     fetchProviders()
@@ -67,6 +69,7 @@ export default function ProvidersList() {
   const handleDelete = async (id) => {
     if (confirm('¿Deseas eliminar este proveedor?')) {
       await deleteDoc(doc(db, 'providers', id))
+      await deleteDoc(doc(db, 'providerDirectory', id))
       fetchProviders()
     }
   }
@@ -94,7 +97,7 @@ export default function ProvidersList() {
                 <span className="text-xs bg-slate-900 text-emerald-400 px-2 py-0.5 rounded border border-slate-700">{p.category || 'General'}</span>
                 <div className="space-x-1">
                   <button onClick={() => handleOpenEdit(p)} className="p-1 text-amber-400 hover:bg-slate-700 rounded"><Edit2 className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => handleDelete(p.id)} className="p-1 text-red-400 hover:bg-slate-700 rounded"><Trash2 className="h-3.5 w-3.5" /></button>
+                  {role === 'admin' && <button onClick={() => handleDelete(p.id)} className="p-1 text-red-400 hover:bg-slate-700 rounded"><Trash2 className="h-3.5 w-3.5" /></button>}
                 </div>
               </div>
               <h3 className="font-bold text-base text-white">{p.name || 'Sin Empresa'}</h3>

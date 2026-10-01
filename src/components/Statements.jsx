@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { db, storage } from '../firebase/config'
-import { collection, getDocs, query, doc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { collection, getDocs, query, doc, updateDoc, deleteDoc, where } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas-pro'
@@ -10,9 +10,8 @@ import {
   FileText, ExternalLink, Edit2, Trash2, X, Check, Printer, Upload, Calendar, Receipt, ArrowUp, ArrowDown, ArrowUpDown, ChevronDown
 } from 'lucide-react'
 
-export default function Statements() {
+export default function Statements({ role }) {
   const [properties, setProperties] = useState([])
-  const [clients, setClients] = useState({})
   const [providers, setProviders] = useState([])
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const endDateInputRef = useRef(null)
@@ -62,24 +61,13 @@ export default function Statements() {
 
   const fetchData = async () => {
     try {
-      // 1. Cargar Clientes y guardarlos en un diccionario por ID para búsqueda rápida
-      const clientSnap = await getDocs(collection(db, 'clients'))
-      const clientMap = {}
-      clientSnap.docs.forEach(doc => {
-        const data = doc.data()
-        clientMap[doc.id] = `${data.firstName || ''} ${data.lastName || ''}`.trim()
-      })
-      setClients(clientMap)
-
-      // 2. Cargar Propiedades
-      const propSnap = await getDocs(collection(db, 'properties'))
+      const propSnap = await getDocs(collection(db, 'propertyStatementDirectory'))
       const propList = propSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       propList.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }))
       setProperties(propList)
 
-      // 3. Cargar Proveedores
       try {
-        const provSnap = await getDocs(collection(db, 'providers'))
+        const provSnap = await getDocs(collection(db, 'providerDirectory'))
         const provList = provSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         provList.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }))
         setProviders(provList)
@@ -105,16 +93,13 @@ export default function Statements() {
     setLoading(true)
     try {
       // 1. Obtener todos los gastos de la propiedad
-      const snapExpenses = await getDocs(query(collection(db, 'expenses')))
+      const snapExpenses = await getDocs(query(collection(db, 'expenses'), where('propertyId', '==', selectedPropertyId)))
       const allExpenses = snapExpenses.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(e => e.propertyId === selectedPropertyId)
 
-      // 2. Obtener todos los ingresos de la propiedad
-      const snapIncome = await getDocs(query(collection(db, 'incomes')))
+      const snapIncome = await getDocs(query(collection(db, 'incomes'), where('propertyId', '==', selectedPropertyId)))
       const allIncome = snapIncome.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(i => i.propertyId === selectedPropertyId)
 
       // 3. FILTRAR MOVIMIENTOS DEL PERIODO (Entre startDate y endDate)
       const filteredExp = allExpenses.filter(e => {
@@ -234,7 +219,7 @@ export default function Statements() {
   }
 
   const selectedProperty = properties.find(p => p.id === selectedPropertyId)
-  const selectedOwnerName = selectedProperty ? (clients[selectedProperty.clientId] || selectedProperty.ownerName || selectedProperty.owner || 'No owner assigned') : ''
+  const selectedOwnerName = selectedProperty?.ownerName || 'No owner assigned'
 
   const filterAndSortMovements = (items, type) => items
     .filter(item => type !== 'expense' || selectedProviderIds.length === 0 || selectedProviderIds.includes(item.providerId))
@@ -378,7 +363,7 @@ export default function Statements() {
               >
                 <option value="">Select a property...</option>
                 {properties.map(p => {
-                  const owner = clients[p.clientId] || p.ownerName || p.owner || 'No owner'
+                  const owner = p.ownerName || 'No owner'
                   return (
                     <option key={p.id} value={p.id}>
                       {p.name || 'Unnamed'} ({owner})
@@ -534,6 +519,7 @@ export default function Statements() {
                       )}
                     </td>
                     <td className="py-2.5 px-4 text-right space-x-1">
+                      {role === 'admin' && <>
                       <button 
                         onClick={() => {
                           setEditingItem({ 
@@ -560,6 +546,7 @@ export default function Statements() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
+                      </>}
                     </td>
                   </tr>
                 ))}
@@ -637,6 +624,7 @@ export default function Statements() {
                       )}
                     </td>
                     <td className="py-2.5 px-4 text-right space-x-1">
+                      {role === 'admin' && <>
                       <button 
                         onClick={() => {
                           setEditingItem({ 
@@ -664,6 +652,7 @@ export default function Statements() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
+                      </>}
                     </td>
                   </tr>
                 ))}
@@ -853,7 +842,7 @@ export default function Statements() {
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-sm text-white focus:outline-none"
                 >
                   {properties.map(p => {
-                    const owner = clients[p.clientId] || p.ownerName || p.owner || 'No owner'
+                    const owner = p.ownerName || 'No owner'
                     return (
                       <option key={p.id} value={p.id}>
                         {p.name || 'Unnamed'} — Owner: {owner}

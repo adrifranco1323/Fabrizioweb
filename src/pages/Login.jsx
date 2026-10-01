@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth'
-import { auth, db } from '../firebase/config'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { signInWithEmailAndPassword, signInWithCustomToken } from 'firebase/auth'
+import { auth, functions } from '../firebase/config'
+import { httpsCallable } from 'firebase/functions'
 import { usernameToEmail } from '../utils/username'
 import { LogIn, Lock, User, KeyRound, Home } from 'lucide-react'
 
@@ -41,19 +41,15 @@ export default function Login({ onLoginSuccess }) {
 
     setOwnerLoading(true)
     try {
-      const q = query(collection(db, 'properties'), where('accessCode', '==', normalizedCode))
-      const snap = await getDocs(q)
-      if (snap.empty) {
-        setOwnerError('Código inválido. Verifica con el administrador.')
-        return
-      }
-
-      const propertyDoc = snap.docs[0]
-      const userCredential = await signInAnonymously(auth)
-      localStorage.setItem('ownerPropertyId', propertyDoc.id)
+      const verifyOwnerCode = httpsCallable(functions, 'ownerSignIn')
+      const result = await verifyOwnerCode({ accessCode: normalizedCode })
+      const { token, propertyId } = result.data
+      localStorage.setItem('ownerPropertyId', propertyId)
+      const userCredential = await signInWithCustomToken(auth, token)
       if (onLoginSuccess) onLoginSuccess(userCredential.user)
     } catch (err) {
       console.error(err)
+      localStorage.removeItem('ownerPropertyId')
       setOwnerError('No se pudo verificar el código. Intenta de nuevo.')
     } finally {
       setOwnerLoading(false)

@@ -1,18 +1,101 @@
-rules_version='2'
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.uid == 'Z1bcROoshfhExCgPhD1FWS8zDDp1'
+        || request.auth.token.role == 'admin'
+      );
+    }
+
+    function isAssistant() {
+      return signedIn() && request.auth.token.role == 'assistant';
+    }
+
+    function isMaid() {
+      return signedIn() && request.auth.token.role == 'maid';
+    }
+
+    function isOwnerOf(propertyId) {
+      return signedIn()
+        && request.auth.token.role == 'owner'
+        && request.auth.token.propertyId == propertyId;
+    }
+
+    function canReadCalendar() {
+      return isAdmin() || isAssistant() || isMaid();
+    }
+
+    function canManageTransactions() {
+      return isAdmin() || isAssistant();
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /properties/{propertyId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /clients/{clientId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /propertyCalendarDirectory/{propertyId} {
+      allow read: if canReadCalendar();
+      allow write: if isAdmin();
+    }
+
+    match /propertyStatementDirectory/{propertyId} {
+      allow read: if isAdmin() || isAssistant() || isOwnerOf(propertyId);
+      allow write: if isAdmin();
+    }
+
+    match /providerDirectory/{providerId} {
+      allow read: if isAdmin() || isAssistant() || (signedIn() && request.auth.token.role == 'owner');
+      allow create, update: if isAdmin() || isAssistant();
+      allow delete: if isAdmin();
+    }
+
+    match /providers/{providerId} {
+      allow read: if isAdmin() || isAssistant();
+      allow create, update: if isAdmin() || isAssistant();
+      allow delete: if isAdmin();
+    }
+
+    match /birthdays/{birthdayId} {
+      allow read: if canReadCalendar();
+      allow write: if isAdmin();
+    }
+
+    match /visits/{visitId} {
+      allow read: if canReadCalendar();
+      allow write: if isAdmin();
+    }
+
+    match /incomes/{incomeId} {
+      allow read: if isAdmin() || isAssistant() || isOwnerOf(resource.data.propertyId);
+      allow create: if canManageTransactions()
+        && request.resource.data.propertyId is string;
+      allow update, delete: if isAdmin();
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if isAdmin() || isAssistant() || isOwnerOf(resource.data.propertyId);
+      allow create: if canManageTransactions()
+        && request.resource.data.propertyId is string;
+      allow update, delete: if isAdmin();
+    }
+
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 10, 7);
+      allow read, write: if false;
     }
   }
 }

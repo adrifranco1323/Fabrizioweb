@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { db, secondaryAuth, functions } from '../firebase/config'
-import { collection, getDocs, setDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore'
+import { collection, getDocs, doc, query, orderBy } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth'
 import { httpsCallable } from 'firebase/functions'
 import { usernameToEmail } from '../utils/username'
@@ -35,6 +35,8 @@ export default function UsersList() {
   const [passwordError, setPasswordError] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [migrationRunning, setMigrationRunning] = useState(false)
+  const [migrationMessage, setMigrationMessage] = useState('')
 
   const fetchUsers = async () => {
     setLoading(true)
@@ -75,8 +77,8 @@ export default function UsersList() {
     setSaving(true)
     try {
       if (editingId) {
-        // Solo se actualiza el rol; el usuario/contraseña se gestionan desde Firebase Auth
-        await updateDoc(doc(db, 'users', editingId), { role })
+        const setUserRole = httpsCallable(functions, 'adminSetUserRole')
+        await setUserRole({ targetUid: editingId, username: email.trim(), role })
       } else {
         const normalizedUsername = email.trim().toLowerCase().replace(/\s+/g, '')
         if (!normalizedUsername) {
@@ -91,11 +93,9 @@ export default function UsersList() {
         }
         // Se crea en una instancia secundaria para no cerrar la sesión del administrador actual
         const credential = await createUserWithEmailAndPassword(secondaryAuth, usernameToEmail(normalizedUsername), password)
-        await setDoc(doc(db, 'users', credential.user.uid), {
-          username: normalizedUsername,
-          role,
-        })
         await signOut(secondaryAuth)
+        const setUserRole = httpsCallable(functions, 'adminSetUserRole')
+        await setUserRole({ targetUid: credential.user.uid, username: normalizedUsername, role })
       }
       setIsModalOpen(false)
       fetchUsers()
@@ -114,9 +114,10 @@ export default function UsersList() {
   }
 
   const handleDelete = async (u) => {
-    if (!confirm(`¿Eliminar el acceso de ${u.username}? Esto quita sus permisos, pero la cuenta debe deshabilitarse también desde la consola de Firebase Authentication.`)) return
+    if (!confirm(`¿Eliminar el usuario ${u.username} y deshabilitar su cuenta?`)) return
     try {
-      await deleteDoc(doc(db, 'users', u.id))
+      const removeUser = httpsCallable(functions, 'adminDeleteUser')
+      await removeUser({ targetUid: u.id })
       fetchUsers()
     } catch (err) {
       console.error('Error al eliminar usuario:', err)
@@ -151,6 +152,21 @@ export default function UsersList() {
     }
   }
 
+  const handleMigrateSecureData = async () => {
+    setMigrationRunning(true)
+    setMigrationMessage('')
+    try {
+      const migrate = httpsCallable(functions, 'migrateCalendarData')
+      const result = await migrate()
+      setMigrationMessage(`Datos preparados: ${result.data.properties} casas y ${result.data.providers} proveedores.`)
+    } catch (err) {
+      console.error('Error al migrar datos:', err)
+      setMigrationMessage(err.message || 'No se pudieron preparar los datos.')
+    } finally {
+      setMigrationRunning(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
@@ -163,6 +179,22 @@ export default function UsersList() {
           className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
         >
           <Plus className="h-4 w-4" /> Agregar Usuario
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-xl border border-slate-700 bg-slate-800 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-white">Preparar datos para reglas seguras</p>
+          <p className="text-xs text-slate-400">Crea directorios reducidos para calendario y estados de cuenta, y sincroniza roles.</p>
+          {migrationMessage && <p className="mt-1 text-xs text-emerald-400">{migrationMessage}</p>}
+        </div>
+        <button
+          type="button"
+          onClick={handleMigrateSecureData}
+          disabled={migrationRunning}
+          className="shrink-0 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
+        >
+          {migrationRunning ? 'Preparando...' : 'Preparar datos'}
         </button>
       </div>
 

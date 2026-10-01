@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { db } from '../firebase/config'
-import { collection, getDocs, query, doc, getDoc } from 'firebase/firestore'
+import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas-pro'
 import {
@@ -29,19 +29,13 @@ export default function OwnerStatementView({ propertyId, onLogout }) {
     const fetchPropertyInfo = async () => {
       if (!propertyId) return
       try {
-        const propSnap = await getDoc(doc(db, 'properties', propertyId))
+        const propSnap = await getDoc(doc(db, 'propertyStatementDirectory', propertyId))
         if (propSnap.exists()) {
           const data = { id: propSnap.id, ...propSnap.data() }
           setProperty(data)
-          if (data.clientId) {
-            const clientSnap = await getDoc(doc(db, 'clients', data.clientId))
-            if (clientSnap.exists()) {
-              const c = clientSnap.data()
-              setOwnerName(`${c.firstName || ''} ${c.lastName || ''}`.trim())
-            }
-          }
+          setOwnerName(data.ownerName || '')
         }
-        const provSnap = await getDocs(collection(db, 'providers'))
+        const provSnap = await getDocs(collection(db, 'providerDirectory'))
         setProviders(provSnap.docs.map(d => ({ id: d.id, ...d.data() })))
       } catch (error) {
         console.error('Error loading property:', error)
@@ -55,15 +49,13 @@ export default function OwnerStatementView({ propertyId, onLogout }) {
       if (!propertyId) return
       setLoading(true)
       try {
-        const snapExpenses = await getDocs(query(collection(db, 'expenses')))
+        const snapExpenses = await getDocs(query(collection(db, 'expenses'), where('propertyId', '==', propertyId)))
         const allExpenses = snapExpenses.docs
           .map(d => ({ id: d.id, ...d.data() }))
-          .filter(e => e.propertyId === propertyId)
 
-        const snapIncome = await getDocs(query(collection(db, 'incomes')))
+        const snapIncome = await getDocs(query(collection(db, 'incomes'), where('propertyId', '==', propertyId)))
         const allIncome = snapIncome.docs
           .map(d => ({ id: d.id, ...d.data() }))
-          .filter(i => i.propertyId === propertyId)
 
         const filteredExp = allExpenses.filter(e => {
           if (!e.date) return true
