@@ -35,8 +35,6 @@ export default function UsersList() {
   const [passwordError, setPasswordError] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
-  const [migrationRunning, setMigrationRunning] = useState(false)
-  const [migrationMessage, setMigrationMessage] = useState('')
 
   const fetchUsers = async () => {
     setLoading(true)
@@ -152,21 +150,6 @@ export default function UsersList() {
     }
   }
 
-  const handleMigrateSecureData = async () => {
-    setMigrationRunning(true)
-    setMigrationMessage('')
-    try {
-      const migrate = httpsCallable(functions, 'migrateCalendarData')
-      const result = await migrate()
-      setMigrationMessage(`Datos preparados: ${result.data.properties} casas y ${result.data.providers} proveedores.`)
-    } catch (err) {
-      console.error('Error al migrar datos:', err)
-      setMigrationMessage(err.message || 'No se pudieron preparar los datos.')
-    } finally {
-      setMigrationRunning(false)
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
@@ -179,22 +162,6 @@ export default function UsersList() {
           className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
         >
           <Plus className="h-4 w-4" /> Agregar Usuario
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-2 rounded-xl border border-slate-700 bg-slate-800 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-white">Preparar datos para reglas seguras</p>
-          <p className="text-xs text-slate-400">Crea directorios reducidos para calendario y estados de cuenta, y sincroniza roles.</p>
-          {migrationMessage && <p className="mt-1 text-xs text-emerald-400">{migrationMessage}</p>}
-        </div>
-        <button
-          type="button"
-          onClick={handleMigrateSecureData}
-          disabled={migrationRunning}
-          className="shrink-0 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
-        >
-          {migrationRunning ? 'Preparando...' : 'Preparar datos'}
         </button>
       </div>
 
