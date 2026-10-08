@@ -12,7 +12,8 @@ import ProvidersList from './components/ProvidersList'
 import ClientsList from './components/ClientsList'
 import UsersList from './components/UsersList'
 import CalendarView from './components/CalendarView'
-import OwnerStatementView from './components/OwnerStatementView'
+import OwnerApp from './components/OwnerApp'
+import ClientProfile from './components/ClientProfile'
 import { Home, Receipt, PieChart, Users, FileText, Contact, Menu, X, LogOut, UserCog, CalendarDays } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { key: 'contracts', label: 'Contratos y Servicios', icon: FileText, roles: ['admin'] },
   { key: 'providers', label: 'Proveedores', icon: Users, roles: ['admin', 'assistant'] },
   { key: 'calendar', label: 'Calendario', icon: CalendarDays, roles: ['admin', 'assistant', 'maid'] },
+  { key: 'clientProfile', label: 'Conoce a tu Cliente', icon: Users, roles: ['admin', 'assistant'] },
   { key: 'users', label: 'Usuarios', icon: UserCog, roles: ['admin'] },
 ]
 
@@ -93,6 +95,33 @@ export default function App() {
     return () => document.removeEventListener('wheel', blurNumberInputOnWheel)
   }, [])
 
+  useEffect(() => {
+    // En iPad, al volver de otra app Safari re-enfoca el último campo y salta hasta él (arriba de la página)
+    let savedY = null
+    const onLeave = () => {
+      savedY = window.scrollY
+      const el = document.activeElement
+      if (el && ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) el.blur()
+    }
+    const onReturn = () => {
+      if (savedY === null) return
+      const y = savedY
+      savedY = null
+      requestAnimationFrame(() => setTimeout(() => {
+        if (Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y)
+      }, 50))
+    }
+    const onVisibility = () => (document.hidden ? onLeave() : onReturn())
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('blur', onLeave)
+    window.addEventListener('focus', onReturn)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('blur', onLeave)
+      window.removeEventListener('focus', onReturn)
+    }
+  }, [])
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-900 text-white">
@@ -108,7 +137,7 @@ export default function App() {
   if (user.isAnonymous || role === 'owner') {
     const ownerPropertyId = localStorage.getItem('ownerPropertyId')
     return (
-      <OwnerStatementView
+      <OwnerApp
         propertyId={ownerPropertyId}
         onLogout={() => {
           localStorage.removeItem('ownerPropertyId')
@@ -219,6 +248,7 @@ export default function App() {
           {safeActiveTab === 'contracts' && <ContractsInfo />}
           {safeActiveTab === 'providers' && <ProvidersList role={role} />}
           {safeActiveTab === 'calendar' && <CalendarView role={role} />}
+          {safeActiveTab === 'clientProfile' && <ClientProfile role={role} />}
           {safeActiveTab === 'users' && <UsersList />}
         </div>
       </main>

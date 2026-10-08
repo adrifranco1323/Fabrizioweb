@@ -49,7 +49,7 @@ service cloud.firestore {
     }
 
     match /propertyCalendarDirectory/{propertyId} {
-      allow read: if canReadCalendar();
+      allow read: if canReadCalendar() || isOwnerOf(propertyId);
       allow write: if isAdmin();
     }
 
@@ -71,13 +71,19 @@ service cloud.firestore {
     }
 
     match /birthdays/{birthdayId} {
-      allow read: if canReadCalendar();
-      allow write: if isAdmin();
+      allow read: if canReadCalendar() || isOwnerOf(resource.data.propertyId);
+      allow create: if isAdmin() || isAssistant() || isOwnerOf(request.resource.data.propertyId);
+      allow update, delete: if isAdmin() || isAssistant() || isOwnerOf(resource.data.propertyId);
     }
 
     match /visits/{visitId} {
-      allow read: if canReadCalendar();
-      allow write: if isAdmin();
+      allow read: if canReadCalendar() || isOwnerOf(resource.data.propertyId);
+      allow create: if isAdmin() || isOwnerOf(request.resource.data.propertyId);
+      allow update, delete: if isAdmin() || isOwnerOf(resource.data.propertyId);
+    }
+
+    match /clientProfiles/{propertyId} {
+      allow read, write: if isAdmin() || isAssistant() || isOwnerOf(propertyId);
     }
 
     match /incomes/{incomeId} {

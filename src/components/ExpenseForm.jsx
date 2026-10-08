@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { db, storage } from '../firebase/config'
 import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { Receipt, Upload, Check, ArrowDownLeft, Calendar } from 'lucide-react'
+import { Receipt, Upload, Check, ArrowDownLeft, Calendar, X } from 'lucide-react'
 
 export default function ExpenseForm({ onExpenseAdded }) {
   const [movementType, setMovementType] = useState('expense')
@@ -38,16 +38,17 @@ export default function ExpenseForm({ onExpenseAdded }) {
     }
 
     const fetchExchangeRate = async () => {
-      // api.hacienda.go.cr no permite peticiones desde el navegador (CORS), se usa una API pública alterna
       try {
-        const response = await fetch('https://open.er-api.com/v6/latest/USD')
+        // API del Ministerio de Hacienda con el tipo de cambio de referencia del BCCR
+        const response = await fetch('https://api.hacienda.go.cr/indicadores/tc/dolar')
+        if (!response.ok) throw new Error(`Exchange rate API returned ${response.status}`)
         const data = await response.json()
-        const rate = data?.rates?.CRC
-        if (rate) {
-          setExchangeRate(String(rate))
-        }
+        const rate = data?.compra?.valor || data?.venta?.valor
+        if (!rate) throw new Error('No se encontró el valor de compra')
+        setExchangeRate(String(Math.round(rate)))
       } catch (error) {
-        console.log('Usando tipo de cambio por defecto', error)
+        console.warn('Usando tipo de cambio por defecto debido a un error:', error)
+        setExchangeRate('500')
       }
     }
 
@@ -263,6 +264,7 @@ export default function ExpenseForm({ onExpenseAdded }) {
             <span className="text-slate-500">Tipo de Cambio: </span>
             <input
               type="number"
+              step="1"
               value={exchangeRate}
               onChange={(e) => setExchangeRate(e.target.value)}
               className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-center font-semibold text-white ml-1 inline-block"
@@ -275,27 +277,43 @@ export default function ExpenseForm({ onExpenseAdded }) {
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-300">Comprobante / Recibo (Máx. 3 archivos, Foto o PDF)</label>
-          <div className="relative border-2 border-dashed border-slate-700 rounded-xl p-3 text-center bg-slate-900/30">
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              multiple
-              onChange={(e) => {
-                const selected = Array.from(e.target.files)
-                if (selected.length > 3) {
-                  alert('Puedes adjuntar un máximo de 3 archivos.')
-                  return
-                }
-                setFiles(selected)
-              }}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-            />
-            <div className="flex items-center justify-center gap-2 text-slate-400 text-xs">
-              <Upload className="h-4 w-4" />
-              <span>{files.length ? `${files.length} archivo(s): ${files.map(f => f.name).join(', ')}` : 'Subir hasta 3 archivos del comprobante'}</span>
+          <label className="mb-1 block text-xs font-medium text-slate-300">Comprobante / Recibo (Máx. 3 archivos, cualquier documento)</label>
+          {files.length < 3 && (
+            <div className="relative border-2 border-dashed border-slate-700 rounded-xl p-3 text-center bg-slate-900/30">
+              <input
+                type="file"
+                multiple
+                onChange={(e) => {
+                  const combined = [...files, ...Array.from(e.target.files)]
+                  if (combined.length > 3) alert('Puedes adjuntar un máximo de 3 archivos.')
+                  setFiles(combined.slice(0, 3))
+                  e.target.value = ''
+                }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+              <div className="flex items-center justify-center gap-2 text-slate-400 text-xs">
+                <Upload className="h-4 w-4" />
+                <span>{files.length ? 'Agregar otro archivo' : 'Subir hasta 3 archivos del comprobante'}</span>
+              </div>
             </div>
-          </div>
+          )}
+          {files.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {files.map((f, idx) => (
+                <li key={`${f.name}-${idx}`} className="flex items-center justify-between gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300">
+                  <span className="truncate">{f.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setFiles(files.filter((_, i) => i !== idx))}
+                    className="shrink-0 text-rose-400 hover:text-rose-300"
+                    title="Quitar archivo"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <button

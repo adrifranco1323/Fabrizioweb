@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react'
 import { db } from '../firebase/config'
 import { collection, getDocs, addDoc, updateDoc, doc, query, orderBy, serverTimestamp, where, writeBatch, deleteField } from 'firebase/firestore'
-import { Home, Plus, Edit2, Trash2, X, UserPlus, KeyRound, RefreshCw, Copy, Cake } from 'lucide-react'
+import { Home, Plus, Edit2, Trash2, X, UserPlus, KeyRound, RefreshCw, Copy } from 'lucide-react'
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // sin 0/O/1/I para evitar confusiones
-const MAX_BIRTHDAYS = 4
-const emptyBirthday = () => ({ name: '', date: '', note: '' })
 
 function generateAccessCode() {
   let code = ''
@@ -25,7 +23,6 @@ export default function PropertiesList() {
   const [newClient, setNewClient] = useState({ firstName: '', lastName: '', phone: '', email: '', cars: '' })
 
   const [selectedProperty, setSelectedProperty] = useState(null)
-  const [selectedPropertyBirthdays, setSelectedPropertyBirthdays] = useState([])
   const [editingId, setEditingId] = useState(null)
 
   const [name, setName] = useState('')
@@ -42,7 +39,6 @@ export default function PropertiesList() {
   const [corpCed, setCorpCed] = useState('')
   const [corpName, setCorpName] = useState('')
   const [billingEmail, setBillingEmail] = useState('')
-  const [birthdays, setBirthdays] = useState([])
 
   const fetchData = async () => {
     try {
@@ -73,7 +69,6 @@ export default function PropertiesList() {
     setCorpCed('')
     setCorpName('')
     setBillingEmail('')
-    setBirthdays([])
   }
 
   const handleOpenCreate = () => {
@@ -96,16 +91,6 @@ export default function PropertiesList() {
     setCorpCed(p.corpCed || '')
     setCorpName(p.corpName || '')
     setBillingEmail(p.billingEmail || '')
-    try {
-      const birthdayQuery = query(collection(db, 'birthdays'), where('propertyId', '==', p.id))
-      const birthdaySnap = await getDocs(birthdayQuery)
-      const savedBirthdays = birthdaySnap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => a.id.localeCompare(b.id))
-      setBirthdays(savedBirthdays.length ? savedBirthdays : (p.birthdays || []))
-    } catch {
-      setBirthdays(p.birthdays || [])
-    }
     setIsModalOpen(true)
   }
 
@@ -121,19 +106,6 @@ export default function PropertiesList() {
     batch.set(doc(db, 'propertyStatementDirectory', id), {
       name: propertyData.name || 'Casa sin nombre',
       ownerName,
-    })
-
-    const previousBirthdays = await getDocs(query(collection(db, 'birthdays'), where('propertyId', '==', id)))
-    previousBirthdays.docs.forEach(birthday => batch.delete(birthday.ref))
-    birthdays.filter(b => b.name.trim() || b.date).slice(0, MAX_BIRTHDAYS).forEach((birthday, index) => {
-      if (!birthday.date) return
-      batch.set(doc(db, 'birthdays', `${id}_${index}`), {
-        propertyId: id,
-        propertyName: propertyData.name || 'Casa sin nombre',
-        name: birthday.name.trim(),
-        date: birthday.date,
-        note: birthday.note?.trim() || '',
-      })
     })
     await batch.commit()
   }
@@ -228,28 +200,7 @@ export default function PropertiesList() {
 
   const handleOpenDetails = async (property) => {
     setSelectedProperty(property)
-    try {
-      const birthdayQuery = query(collection(db, 'birthdays'), where('propertyId', '==', property.id))
-      const birthdaySnap = await getDocs(birthdayQuery)
-      setSelectedPropertyBirthdays(birthdaySnap.docs.map(birthday => birthday.data()))
-    } catch (error) {
-      console.error('Error al cargar cumpleaños:', error)
-      setSelectedPropertyBirthdays(property.birthdays || [])
-    }
     setIsDetailsOpen(true)
-  }
-
-  const addBirthday = () => {
-    if (birthdays.length >= MAX_BIRTHDAYS) return
-    setBirthdays([...birthdays, emptyBirthday()])
-  }
-
-  const updateBirthday = (index, field, value) => {
-    setBirthdays(birthdays.map((b, i) => i === index ? { ...b, [field]: value } : b))
-  }
-
-  const removeBirthday = (index) => {
-    setBirthdays(birthdays.filter((_, i) => i !== index))
   }
 
   return (
@@ -433,33 +384,6 @@ export default function PropertiesList() {
                 </div>
               </div>
 
-              <div className="border-t border-slate-700 pt-3">
-                <div className="flex justify-between items-center mb-2">
-                  <p className="font-bold text-emerald-400 flex items-center gap-1.5"><Cake className="h-3.5 w-3.5" /> Cumpleaños (máx. {MAX_BIRTHDAYS})</p>
-                  <button
-                    type="button"
-                    onClick={addBirthday}
-                    disabled={birthdays.length >= MAX_BIRTHDAYS}
-                    className="text-xs text-emerald-400 hover:underline flex items-center gap-1 font-semibold disabled:opacity-40 disabled:no-underline"
-                  >
-                    <Plus className="h-3.5 w-3.5" /> Agregar
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {birthdays.map((b, idx) => (
-                    <div key={idx} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-2 bg-slate-900/50 border border-slate-700/60 rounded-xl p-2">
-                      <input type="text" placeholder="Nombre" value={b.name} onChange={e => updateBirthday(idx, 'name', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white" />
-                      <input type="date" value={b.date} onChange={e => updateBirthday(idx, 'date', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white" />
-                      <input type="text" placeholder="Nota (opcional)" value={b.note} onChange={e => updateBirthday(idx, 'note', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white" />
-                      <button type="button" onClick={() => removeBirthday(idx)} className="p-2 text-red-400 hover:bg-slate-700 rounded-lg self-center"><Trash2 className="h-4 w-4" /></button>
-                    </div>
-                  ))}
-                  {birthdays.length === 0 && (
-                    <p className="text-slate-500">Sin cumpleaños registrados para esta casa.</p>
-                  )}
-                </div>
-              </div>
-
               <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-3 rounded-xl text-sm mt-4">Guardar Propiedad</button>
             </form>
           </div>
@@ -533,13 +457,6 @@ export default function PropertiesList() {
                   <p><strong>Corp. Name:</strong> {selectedProperty.corpName || 'N/A'}</p>
                   <p><strong>Corp. Cédula:</strong> {selectedProperty.corpCed || 'N/A'}</p>
                   <p><strong>Billing Email:</strong> {selectedProperty.billingEmail || 'N/A'}</p>
-                </div>
-
-                <div className="bg-slate-900 p-3 rounded-xl border border-slate-700/50 space-y-1">
-                  <p className="font-semibold text-emerald-400 mb-1 flex items-center gap-1.5"><Cake className="h-3.5 w-3.5" /> Cumpleaños</p>
-                  {selectedPropertyBirthdays.length ? selectedPropertyBirthdays.map((b, idx) => (
-                    <p key={idx}><strong>{b.name || 'Sin nombre'}:</strong> {b.date || 'N/A'}{b.note ? ` — ${b.note}` : ''}</p>
-                  )) : <p>No hay cumpleaños registrados.</p>}
                 </div>
               </div>
 
