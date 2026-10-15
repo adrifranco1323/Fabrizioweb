@@ -7,5 +7,16 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: 'offline-precache-manifest',
+      generateBundle(_, bundle) {
+        const assets = Object.keys(bundle).filter(file => file.startsWith('assets/'))
+        this.emitFile({
+          type: 'asset',
+          fileName: 'precache-manifest.json',
+          source: JSON.stringify(assets.map(file => `/${file}`)),
+        })
+      },
+    },
   ],
 })

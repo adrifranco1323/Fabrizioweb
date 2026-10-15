@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { db } from '../firebase/config'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore'
-import { Contact, Plus, Edit2, Trash2, X, Car } from 'lucide-react'
+import { Contact, Plus, Edit2, Trash2, X, Car, Search } from 'lucide-react'
+import { normalizeComparable } from '../utils/formValues'
 
 export default function ClientsList() {
   const [clients, setClients] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
@@ -50,22 +52,36 @@ export default function ClientsList() {
 
   const handleSave = async (e) => {
     e.preventDefault()
-    const payload = {
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      phone: phone.trim(),
-      email: email.trim(), // Permite varios correos ej: correo1@... / correo2@...
-      lp: lp.trim(),
-      cars: cars.trim()
-    }
+    try {
+      const snapshot = await getDocs(collection(db, 'clients'))
+      const normalizedFullName = normalizeComparable(`${firstName} ${lastName}`)
+      if (snapshot.docs.some(d => {
+        const client = d.data()
+        return d.id !== editingId && normalizeComparable(`${client.firstName} ${client.lastName}`) === normalizedFullName
+      })) {
+        alert('Ya existe un cliente con ese nombre completo (sin distinguir mayúsculas/minúsculas).')
+        return
+      }
+      const payload = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim(),
+        email: email.trim(), // Permite varios correos ej: correo1@... / correo2@...
+        lp: lp.trim(),
+        cars: cars.trim()
+      }
 
-    if (editingId) {
-      await updateDoc(doc(db, 'clients', editingId), payload)
-    } else {
-      await addDoc(collection(db, 'clients'), payload)
+      if (editingId) {
+        await updateDoc(doc(db, 'clients', editingId), payload)
+      } else {
+        await addDoc(collection(db, 'clients'), payload)
+      }
+      setIsModalOpen(false)
+      fetchClients()
+    } catch (error) {
+      console.error('Error al guardar cliente:', error)
+      alert('No se pudo guardar el cliente. Intenta de nuevo.')
     }
-    setIsModalOpen(false)
-    fetchClients()
   }
 
   const handleDelete = async (id) => {
@@ -74,6 +90,12 @@ export default function ClientsList() {
       fetchClients()
     }
   }
+
+  const filteredClients = clients.filter(client =>
+    normalizeComparable([
+      client.firstName, client.lastName, client.phone, client.email, client.lp, client.cars,
+    ].join(' ')).includes(normalizeComparable(searchTerm))
+  )
 
   return (
     <div className="space-y-6">
@@ -91,6 +113,19 @@ export default function ClientsList() {
       </div>
 
       <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl">
+        <div className="border-b border-slate-700 p-3">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Buscar nombre, teléfono, correo o placa..."
+              aria-label="Buscar clientes"
+              className="w-full rounded-xl border border-slate-700 bg-slate-900 py-2 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+        </div>
         <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse text-xs">
           <thead>
@@ -104,7 +139,7 @@ export default function ClientsList() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700">
-            {clients.map(c => (
+            {filteredClients.map(c => (
               <tr key={c.id} className="hover:bg-slate-750">
                 <td className="p-3 font-semibold text-white text-sm">
                   {c.firstName} {c.lastName}
@@ -126,6 +161,7 @@ export default function ClientsList() {
                 </td>
               </tr>
             ))}
+            {filteredClients.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-sm text-slate-500">No hay clientes que coincidan con la búsqueda.</td></tr>}
           </tbody>
         </table>
         </div>

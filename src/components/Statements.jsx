@@ -1,24 +1,38 @@
 import { useState, useEffect, useRef } from 'react'
+import DateRangePicker from './DateRangePicker'
 import { createPortal } from 'react-dom'
 import { db, storage } from '../firebase/config'
 import { collection, getDocs, query, doc, updateDoc, deleteDoc, where } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas-pro'
+import { getCostaRicaDate, getCostaRicaMonthStart } from '../utils/formValues'
+import HouseSelectionNotice from './HouseSelectionNotice'
 import { 
   Building2, ArrowDownLeft, ArrowUpRight, Wallet, 
   FileText, ExternalLink, Edit2, Trash2, X, Check, Printer, Upload, Calendar, Receipt, ArrowUp, ArrowDown, ArrowUpDown, ChevronDown
 } from 'lucide-react'
 
+
+// Usa el tipo de cambio guardado; en registros viejos lo deduce de los montos
+function getSavedRate(item) {
+  const saved = parseFloat(item.exchangeRate)
+  if (saved > 0) return saved
+  const crc = Number(item.amountCRC)
+  const usd = Number(item.amountUSD)
+  if (crc > 0 && usd > 0) return Math.round(crc / usd)
+  return 440
+}
+
 export default function Statements({ role }) {
   const [properties, setProperties] = useState([])
   const [providers, setProviders] = useState([])
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
-  const endDateInputRef = useRef(null)
+  const [showHouseWarning, setShowHouseWarning] = useState(false)
   
   // Filtros de fecha (Por defecto: mes actual)
-  const today = new Date().toISOString().split('T')[0]
-  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  const today = getCostaRicaDate()
+  const firstDayOfMonth = getCostaRicaMonthStart()
   
   const [startDate, setStartDate] = useState(firstDayOfMonth)
   const [endDate, setEndDate] = useState(today)
@@ -195,7 +209,7 @@ export default function Statements({ role }) {
         date: editingItem.date,
         currency: editingItem.currency,
         originalAmount: numericAmount,
-        exchangeRate: editingItem.currency === 'USD' ? rate : null,
+        exchangeRate: rate,
         amountCRC: parseFloat(amountCRC.toFixed(2)),
         amountUSD: parseFloat(amountUSD.toFixed(2)),
         receipts,
@@ -285,6 +299,10 @@ export default function Statements({ role }) {
   const accumulatedBalanceUSD = openingBalanceUSD + netPeriodBalanceUSD
 
   const handleDownloadPDF = async () => {
+    if (!selectedPropertyId) {
+      setShowHouseWarning(true)
+      return
+    }
     if (!pdfTemplateRef.current) return
     setGeneratingPdf(true)
     try {
@@ -358,7 +376,10 @@ export default function Statements({ role }) {
               <Building2 className="h-4 w-4 text-slate-400" />
               <select
                 value={selectedPropertyId}
-                onChange={(e) => setSelectedPropertyId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedPropertyId(e.target.value)
+                  setShowHouseWarning(false)
+                }}
                 className="w-full sm:w-64 rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-sm font-semibold text-white focus:outline-none"
               >
                 <option value="">Select a property...</option>
@@ -375,34 +396,20 @@ export default function Statements({ role }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 items-end">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-300">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                const nextStartDate = e.target.value
-                setStartDate(nextStartDate)
-                if (endDate < nextStartDate) setEndDate(nextStartDate)
-                try {
-                  endDateInputRef.current?.showPicker()
-                } catch {
-                  endDateInputRef.current?.focus()
-                }
-              }}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:outline-none"
-            />
+        {showHouseWarning && (
+          <div className="mb-4 max-w-md">
+            <HouseSelectionNotice isEnglish />
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-300">End Date</label>
-            <input
-              ref={endDateInputRef}
-              type="date"
-              value={endDate}
-              min={startDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:outline-none"
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 items-end">
+          <div className="sm:col-span-2 md:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-slate-300">Date Range</label>
+            <DateRangePicker
+              locale="en"
+              startDate={startDate}
+              endDate={endDate}
+              onChange={(s, e) => { setStartDate(s); setEndDate(e) }}
             />
           </div>
           <div className="text-xs text-slate-400 pb-2">
@@ -526,9 +533,9 @@ export default function Statements({ role }) {
                             type: 'income', 
                             currency: inc.currency || 'USD', 
                             originalAmount: inc.originalAmount || inc.amountUSD || '', 
-                            exchangeRate: inc.exchangeRate || 440,
                             propertyId: inc.propertyId || selectedPropertyId,
                             ...inc,
+                            exchangeRate: getSavedRate(inc),
                             receipts: getReceipts(inc)
                           })
                           setEditFiles([])
@@ -631,10 +638,10 @@ export default function Statements({ role }) {
                             type: 'expense', 
                             currency: exp.currency || 'CRC', 
                             originalAmount: exp.originalAmount || exp.amountCRC || '', 
-                            exchangeRate: exp.exchangeRate || 440,
                             providerId: exp.providerId || '',
                             propertyId: exp.propertyId || selectedPropertyId,
                             ...exp,
+                            exchangeRate: getSavedRate(exp),
                             receipts: getReceipts(exp)
                           })
                           setEditFiles([])

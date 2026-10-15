@@ -49,29 +49,41 @@ export default function App() {
       }
 
       if (currentUser && !currentUser.isAnonymous) {
-        try {
-          const tokenResult = await currentUser.getIdTokenResult(true)
-          if (tokenResult.claims.role === 'owner') {
-            setRole('owner')
-          } else {
-            const roleSnap = await getDoc(doc(db, 'users', currentUser.uid))
-            if (currentUser.uid === INITIAL_ADMIN_UID) {
-              if (!roleSnap.exists() || roleSnap.data().role !== 'admin' || !roleSnap.data().username) {
-                await setDoc(doc(db, 'users', currentUser.uid), {
-                  username: emailToUsername(currentUser.email),
-                  role: 'admin',
-                }, { merge: true })
-              }
-              setRole('admin')
-            } else if (roleSnap.exists()) {
-              setRole(roleSnap.data().role || null)
+        const offlineAdminKey = `offline-admin:${currentUser.uid}`
+        const hasCachedAdminRole = localStorage.getItem(offlineAdminKey) === 'admin'
+        if (!navigator.onLine && hasCachedAdminRole) {
+          setRole('admin')
+          setActiveTab('contracts')
+        } else {
+          try {
+            const tokenResult = await currentUser.getIdTokenResult()
+            if (tokenResult.claims.role === 'owner') {
+              setRole('owner')
             } else {
-              setRole(null)
+              const roleSnap = await getDoc(doc(db, 'users', currentUser.uid))
+              if (currentUser.uid === INITIAL_ADMIN_UID) {
+                if (!roleSnap.exists() || roleSnap.data().role !== 'admin' || !roleSnap.data().username) {
+                  await setDoc(doc(db, 'users', currentUser.uid), {
+                    username: emailToUsername(currentUser.email),
+                    role: 'admin',
+                  }, { merge: true })
+                }
+                setRole('admin')
+                localStorage.setItem(offlineAdminKey, 'admin')
+              } else if (roleSnap.exists()) {
+                const resolvedRole = roleSnap.data().role || null
+                setRole(resolvedRole)
+                if (resolvedRole === 'admin') localStorage.setItem(offlineAdminKey, 'admin')
+              } else {
+                setRole(null)
+              }
             }
+          } catch (err) {
+            console.error('Error al cargar el rol del usuario:', err)
+            const networkUnavailable = !navigator.onLine || ['auth/network-request-failed', 'unavailable'].includes(err?.code)
+            setRole(networkUnavailable && hasCachedAdminRole ? 'admin' : null)
+            if (networkUnavailable && hasCachedAdminRole) setActiveTab('contracts')
           }
-        } catch (err) {
-          console.error('Error al cargar el rol del usuario:', err)
-          setRole(null)
         }
       } else {
         setRole(null)
@@ -96,29 +108,114 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    // En iPad, al volver de otra app Safari re-enfoca el último campo y salta hasta él (arriba de la página)
-    let savedY = null
-    const onLeave = () => {
-      savedY = window.scrollY
+    const scrollKey = 'fae-app-scroll-y'
+    const restoreTimers = []
+    let scrollFrame = null
+    let restoringUntil = 0
+    let lastInteractionAt = 0
+    let lastKnownY = window.scrollY
+
+    try {
+      lastKnownY = Math.max(lastKnownY, Number(sessionStorage.getItem(scrollKey) || 0))
+    } catch {
+      // The in-memory position remains available if session storage is disabled.
+    }
+
+    const getScrollY = () => window.scrollY || document.scrollingElement?.scrollTop || 0
+    const savePosition = (y) => {
+      lastKnownY = y
+      try {
+        sessionStorage.setItem(scrollKey, String(y))
+      } catch {
+        // Scroll restoration still works for the current tab without storage.
+      }
+    }
+
+    const saveScroll = () => {
+      if (scrollFrame !== null || Date.now() < restoringUntil) return
+      scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = null
+        const currentY = getScrollY()
+        const automaticJump = currentY < 100 && lastKnownY > 200 && Date.now() - lastInteractionAt > 1800
+        if (automaticJump) {
+          restoreScroll(lastKnownY)
+        } else {
+          savePosition(currentY)
+        }
+      })
+    }
+
+    const restoreScroll = (targetY = lastKnownY) => {
+      if (!Number.isFinite(targetY) || targetY <= 0) return
+      restoreTimers.splice(0).forEach(clearTimeout)
+      restoringUntil = Date.now() + 2500
+      ;[0, 100, 300, 700, 1200, 2000].forEach(delay => {
+        restoreTimers.push(setTimeout(() => {
+          if (document.hidden) return
+          window.scrollTo(0, targetY)
+          if (document.scrollingElement) document.scrollingElement.scrollTop = targetY
+        }, delay))
+      })
+    }
+
+    const blurActiveField = () => {
       const el = document.activeElement
       if (el && ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) el.blur()
     }
-    const onReturn = () => {
-      if (savedY === null) return
-      const y = savedY
-      savedY = null
-      requestAnimationFrame(() => setTimeout(() => {
-        if (Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y)
-      }, 50))
+
+    const onLeave = () => {
+      const currentY = getScrollY()
+      const automaticJump = currentY < 100 && lastKnownY > 200 && Date.now() - lastInteractionAt > 1800
+      if (!automaticJump) savePosition(currentY)
+      restoringUntil = Date.now() + 2500
+      blurActiveField()
+      if (!document.hidden) {
+        const stableY = lastKnownY
+        restoreTimers.push(setTimeout(() => restoreScroll(stableY), 50))
+      }
     }
-    const onVisibility = () => (document.hidden ? onLeave() : onReturn())
+
+    const onResume = () => {
+      blurActiveField()
+      restoreScroll()
+    }
+    const onViewportResize = () => {
+      const currentY = getScrollY()
+      if (lastKnownY - currentY > 120 && Date.now() - lastInteractionAt > 1800) {
+        blurActiveField()
+        restoreScroll()
+      }
+    }
+    const onUserInteraction = () => { lastInteractionAt = Date.now() }
+    const onVisibility = () => (document.hidden ? onLeave() : onResume())
+    window.addEventListener('scroll', saveScroll, { passive: true })
     document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', onLeave)
+    window.addEventListener('pageshow', onResume)
     window.addEventListener('blur', onLeave)
-    window.addEventListener('focus', onReturn)
+    window.addEventListener('focus', onResume)
+    window.addEventListener('resize', onViewportResize)
+    window.visualViewport?.addEventListener('resize', onViewportResize)
+    document.addEventListener('touchstart', onUserInteraction, { passive: true })
+    document.addEventListener('wheel', onUserInteraction, { passive: true })
+    document.addEventListener('pointerdown', onUserInteraction, { passive: true })
+    document.addEventListener('keydown', onUserInteraction)
+    restoreScroll(lastKnownY)
     return () => {
+      window.removeEventListener('scroll', saveScroll)
       document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', onLeave)
+      window.removeEventListener('pageshow', onResume)
       window.removeEventListener('blur', onLeave)
-      window.removeEventListener('focus', onReturn)
+      window.removeEventListener('focus', onResume)
+      window.removeEventListener('resize', onViewportResize)
+      window.visualViewport?.removeEventListener('resize', onViewportResize)
+      document.removeEventListener('touchstart', onUserInteraction)
+      document.removeEventListener('wheel', onUserInteraction)
+      document.removeEventListener('pointerdown', onUserInteraction)
+      document.removeEventListener('keydown', onUserInteraction)
+      if (scrollFrame !== null) cancelAnimationFrame(scrollFrame)
+      restoreTimers.forEach(clearTimeout)
     }
   }, [])
 

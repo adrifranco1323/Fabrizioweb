@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { db } from '../firebase/config'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore'
-import { Users, Plus, Edit2, Trash2, X } from 'lucide-react'
+import { Users, Plus, Edit2, Trash2, X, Search } from 'lucide-react'
+import { normalizeComparable } from '../utils/formValues'
 
 export default function ProvidersList({ role }) {
   const [providers, setProviders] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   
@@ -54,16 +56,27 @@ export default function ProvidersList({ role }) {
 
   const handleSave = async (e) => {
     e.preventDefault()
-    const payload = { name, contactName, category, bank, currency, iban, phone, email }
-    if (editingId) {
-      await updateDoc(doc(db, 'providers', editingId), payload)
-      await setDoc(doc(db, 'providerDirectory', editingId), { name: name.trim() }, { merge: true })
-    } else {
-      const providerRef = await addDoc(collection(db, 'providers'), payload)
-      await setDoc(doc(db, 'providerDirectory', providerRef.id), { name: name.trim() })
+    try {
+      const snapshot = await getDocs(collection(db, 'providers'))
+      const normalizedName = normalizeComparable(name)
+      if (snapshot.docs.some(d => d.id !== editingId && normalizeComparable(d.data().name) === normalizedName)) {
+        alert('Ya existe un proveedor con ese nombre (sin distinguir mayúsculas/minúsculas).')
+        return
+      }
+      const payload = { name: name.trim(), contactName, category, bank, currency, iban, phone, email }
+      if (editingId) {
+        await updateDoc(doc(db, 'providers', editingId), payload)
+        await setDoc(doc(db, 'providerDirectory', editingId), { name: name.trim() }, { merge: true })
+      } else {
+        const providerRef = await addDoc(collection(db, 'providers'), payload)
+        await setDoc(doc(db, 'providerDirectory', providerRef.id), { name: name.trim() })
+      }
+      setIsModalOpen(false)
+      fetchProviders()
+    } catch (error) {
+      console.error('Error al guardar proveedor:', error)
+      alert('No se pudo guardar el proveedor. Intenta de nuevo.')
     }
-    setIsModalOpen(false)
-    fetchProviders()
   }
 
   const handleDelete = async (id) => {
@@ -73,6 +86,13 @@ export default function ProvidersList({ role }) {
       fetchProviders()
     }
   }
+
+  const filteredProviders = providers.filter(provider =>
+    normalizeComparable([
+      provider.name, provider.contactName, provider.category, provider.bank,
+      provider.iban, provider.phone, provider.email,
+    ].join(' ')).includes(normalizeComparable(searchTerm))
+  )
 
   return (
     <div className="space-y-6">
@@ -89,8 +109,20 @@ export default function ProvidersList({ role }) {
         </button>
       </div>
 
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+        <input
+          type="search"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          placeholder="Buscar proveedor, contacto, IBAN..."
+          aria-label="Buscar proveedores"
+          className="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {providers.map(p => (
+        {filteredProviders.map(p => (
           <div key={p.id} className="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-3 shadow-md flex flex-col justify-between">
             <div className="space-y-2">
               <div className="flex justify-between items-start">
@@ -116,6 +148,7 @@ export default function ProvidersList({ role }) {
             </div>
           </div>
         ))}
+        {filteredProviders.length === 0 && <p className="col-span-full py-6 text-center text-sm text-slate-500">No hay proveedores que coincidan con la búsqueda.</p>}
       </div>
 
       {isModalOpen && (

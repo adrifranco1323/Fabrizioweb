@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { db } from '../firebase/config'
 import { collection, getDocs, addDoc, updateDoc, doc, query, orderBy, serverTimestamp, where, writeBatch, deleteField } from 'firebase/firestore'
-import { Home, Plus, Edit2, Trash2, X, UserPlus, KeyRound, RefreshCw, Copy } from 'lucide-react'
+import { Home, Plus, Edit2, Trash2, X, UserPlus, KeyRound, RefreshCw, Copy, Search } from 'lucide-react'
+import { normalizeComparable } from '../utils/formValues'
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // sin 0/O/1/I para evitar confusiones
 
@@ -39,6 +40,7 @@ export default function PropertiesList() {
   const [corpCed, setCorpCed] = useState('')
   const [corpName, setCorpName] = useState('')
   const [billingEmail, setBillingEmail] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
 
   const fetchData = async () => {
     try {
@@ -113,14 +115,29 @@ export default function PropertiesList() {
   const handleSave = async (e) => {
     e.preventDefault()
 
+    let currentProperties
+    try {
+      const snapshot = await getDocs(collection(db, 'properties'))
+      currentProperties = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+    } catch (error) {
+      console.error('Error al validar propiedades existentes:', error)
+      alert('No se pudo validar el nombre de la casa. Intenta de nuevo.')
+      return
+    }
+
     const normalizedCode = accessCode.trim().toUpperCase()
     if (!normalizedCode) {
       alert('El código de acceso es obligatorio.')
       return
     }
-    const codeTaken = properties.some(p => p.id !== editingId && (p.accessCode || '').toUpperCase() === normalizedCode)
+    const codeTaken = currentProperties.some(p => p.id !== editingId && (p.accessCode || '').toUpperCase() === normalizedCode)
     if (codeTaken) {
       alert('Ese código de acceso ya está en uso por otra casa. Genera uno nuevo.')
+      return
+    }
+    const normalizedName = normalizeComparable(name)
+    if (currentProperties.some(property => property.id !== editingId && normalizeComparable(property.name) === normalizedName)) {
+      alert('Ya existe una casa con ese nombre (sin distinguir mayúsculas/minúsculas).')
       return
     }
 
@@ -161,6 +178,16 @@ export default function PropertiesList() {
     if (!newClient.firstName.trim()) return
 
     try {
+      const existingClients = await getDocs(collection(db, 'clients'))
+      const normalizedClientName = normalizeComparable(`${newClient.firstName} ${newClient.lastName}`)
+      if (existingClients.docs.some(d => {
+        const client = d.data()
+        return normalizeComparable(`${client.firstName} ${client.lastName}`) === normalizedClientName
+      })) {
+        alert('Ya existe un cliente con ese nombre (sin distinguir mayúsculas/minúsculas).')
+        return
+      }
+
       const docRef = await addDoc(collection(db, 'clients'), {
         firstName: newClient.firstName.trim(),
         lastName: newClient.lastName.trim(),
@@ -203,6 +230,13 @@ export default function PropertiesList() {
     setIsDetailsOpen(true)
   }
 
+  const filteredProperties = properties.filter(property => {
+    const client = clients.find(item => item.id === property.clientId)
+    const searchable = [property.name, property.corpName, property.billingEmail, property.accessCode,
+      client?.firstName, client?.lastName, client?.email].join(' ')
+    return normalizeComparable(searchable).includes(normalizeComparable(searchTerm))
+  })
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
@@ -219,6 +253,19 @@ export default function PropertiesList() {
       </div>
 
       <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl">
+        <div className="border-b border-slate-700 p-3">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Buscar casa, cliente o código..."
+              aria-label="Buscar casas"
+              className="w-full rounded-xl border border-slate-700 bg-slate-900 py-2 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+        </div>
         <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -231,7 +278,7 @@ export default function PropertiesList() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700 text-sm">
-            {properties.map(p => {
+            {filteredProperties.map(p => {
               const assignedClient = clients.find(c => c.id === p.clientId)
               return (
                 <tr key={p.id} className="hover:bg-slate-750">
@@ -257,6 +304,7 @@ export default function PropertiesList() {
                 </tr>
               )
             })}
+            {filteredProperties.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-sm text-slate-500">No hay casas que coincidan con la búsqueda.</td></tr>}
           </tbody>
         </table>
         </div>

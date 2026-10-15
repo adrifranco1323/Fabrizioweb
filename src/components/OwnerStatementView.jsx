@@ -4,6 +4,7 @@ import { db } from '../firebase/config'
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas-pro'
+import { getCostaRicaDate, getCostaRicaMonthStart } from '../utils/formValues'
 import {
   ArrowDownLeft, ArrowUpRight, Wallet, FileText, ExternalLink, Printer, LogOut,
   ArrowUp, ArrowDown, ArrowUpDown, ChevronDown
@@ -14,8 +15,8 @@ export default function OwnerStatementView({ propertyId, onLogout, hideLogout = 
   const [ownerName, setOwnerName] = useState('')
   const [providers, setProviders] = useState([])
 
-  const today = new Date().toISOString().split('T')[0]
-  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  const today = getCostaRicaDate()
+  const firstDayOfMonth = getCostaRicaMonthStart()
 
   const [startDate, setStartDate] = useState(firstDayOfMonth)
   const [endDate, setEndDate] = useState(today)
@@ -247,22 +248,13 @@ export default function OwnerStatementView({ propertyId, onLogout, hideLogout = 
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 items-end">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-300">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-300">End Date</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:outline-none"
+          <div className="sm:col-span-2 md:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-slate-300">Date Range</label>
+            <DateRangePicker
+              locale="en"
+              startDate={startDate}
+              endDate={endDate}
+              onChange={(s, e) => { setStartDate(s); setEndDate(e) }}
             />
           </div>
           <div className="text-xs text-slate-400 pb-2">
@@ -604,3 +596,4 @@ export default function OwnerStatementView({ propertyId, onLogout, hideLogout = 
     </div>
   )
 }
+import DateRangePicker from './DateRangePicker'

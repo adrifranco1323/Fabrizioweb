@@ -3,6 +3,8 @@ import { db, storage } from '../firebase/config'
 import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { Receipt, Upload, Check, ArrowDownLeft, Calendar, X } from 'lucide-react'
+import { getCostaRicaDate } from '../utils/formValues'
+import HouseSelectionNotice from './HouseSelectionNotice'
 
 export default function ExpenseForm({ onExpenseAdded }) {
   const [movementType, setMovementType] = useState('expense')
@@ -14,10 +16,11 @@ export default function ExpenseForm({ onExpenseAdded }) {
   const [currency, setCurrency] = useState('CRC')
   const [amount, setAmount] = useState('')
   const [exchangeRate, setExchangeRate] = useState('440')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(getCostaRicaDate())
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [showHouseWarning, setShowHouseWarning] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,7 +61,11 @@ export default function ExpenseForm({ onExpenseAdded }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!amount || !propertyId) return
+    if (!propertyId) {
+      setShowHouseWarning(true)
+      return
+    }
+    if (!amount) return
 
     setLoading(true)
     try {
@@ -91,11 +98,12 @@ export default function ExpenseForm({ onExpenseAdded }) {
         createdAt: serverTimestamp()
       }
 
+      payload.currency = currency
+      payload.originalAmount = numericAmount
+      payload.exchangeRate = rate
+
       if (movementType === 'expense') {
         payload.providerId = providerId || null
-        payload.currency = currency
-        payload.originalAmount = numericAmount
-        payload.exchangeRate = currency === 'USD' ? rate : null
       }
 
       await addDoc(collection(db, targetCollection), payload)
@@ -103,7 +111,7 @@ export default function ExpenseForm({ onExpenseAdded }) {
       setAmount('')
       setDescription('')
       setFiles([])
-      setDate(new Date().toISOString().split('T')[0])
+      setDate(getCostaRicaDate())
       setSuccess(true)
       if (onExpenseAdded) onExpenseAdded()
       setTimeout(() => setSuccess(false), 3000)
@@ -159,11 +167,15 @@ export default function ExpenseForm({ onExpenseAdded }) {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {showHouseWarning && <HouseSelectionNotice />}
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-300">Seleccionar Casa / Propiedad</label>
           <select
             value={propertyId}
-            onChange={(e) => setPropertyId(e.target.value)}
+            onChange={(e) => {
+              setPropertyId(e.target.value)
+              setShowHouseWarning(false)
+            }}
             className="w-full rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-sm text-white focus:outline-none"
           >
             <option value="">Selecciona una casa...</option>
@@ -318,6 +330,12 @@ export default function ExpenseForm({ onExpenseAdded }) {
 
         <button
           type="submit"
+          onClick={(e) => {
+            if (!propertyId) {
+              e.preventDefault()
+              setShowHouseWarning(true)
+            }
+          }}
           disabled={loading}
           className={`w-full py-3 rounded-xl font-semibold transition-all text-slate-900 disabled:opacity-50 ${movementType === 'income' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-amber-500 hover:bg-amber-400'}`}
         >

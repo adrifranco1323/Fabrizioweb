@@ -27,7 +27,7 @@ export default function Login({ onLoginSuccess }) {
       if (onLoginSuccess) onLoginSuccess(userCredential.user)
     } catch (err) {
       console.error(err)
-      setError('Usuario o contraseña incorrectos. Verifica tus credenciales.')
+      setError('Incorrect username or password. Please check your credentials.')
     } finally {
       setLoading(false)
     }
@@ -50,7 +50,7 @@ export default function Login({ onLoginSuccess }) {
     } catch (err) {
       console.error(err)
       localStorage.removeItem('ownerPropertyId')
-      setOwnerError('No se pudo verificar el código. Intenta de nuevo.')
+      setOwnerError('Could not verify the code. Please try again.')
     } finally {
       setOwnerLoading(false)
     }
@@ -63,8 +63,8 @@ export default function Login({ onLoginSuccess }) {
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
             <Lock className="h-6 w-6" />
           </div>
-          <h2 className="text-2xl font-bold text-white">Gestión de Propiedades</h2>
-          <p className="mt-1 text-sm text-slate-400">Ingresa tu cuenta para continuar</p>
+          <h2 className="text-2xl font-bold text-white">Property Management</h2>
+          <p className="mt-1 text-sm text-slate-400">Sign in to continue</p>
         </div>
 
         <div className="mb-6 flex rounded-xl border border-slate-700 bg-slate-900/50 p-1">
@@ -73,14 +73,14 @@ export default function Login({ onLoginSuccess }) {
             onClick={() => setMode('admin')}
             className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${mode === 'admin' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
           >
-            <Lock className="h-3.5 w-3.5" /> Administrador
+            <Lock className="h-3.5 w-3.5" /> Administrator
           </button>
           <button
             type="button"
             onClick={() => setMode('owner')}
             className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${mode === 'owner' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
           >
-            <Home className="h-3.5 w-3.5" /> Propietario
+            <Home className="h-3.5 w-3.5" /> Owner Section
           </button>
         </div>
 
@@ -94,7 +94,7 @@ export default function Login({ onLoginSuccess }) {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-300">Usuario</label>
+                <label className="mb-1 block text-xs font-medium text-slate-300">Username</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
                   <input
@@ -102,14 +102,14 @@ export default function Login({ onLoginSuccess }) {
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="usuario"
+                    placeholder="username"
                     className="w-full rounded-xl border border-slate-700 bg-slate-900/50 py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-300">Contraseña</label>
+                <label className="mb-1 block text-xs font-medium text-slate-300">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
                   <input
@@ -129,13 +129,13 @@ export default function Login({ onLoginSuccess }) {
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 font-semibold text-slate-950 transition-all hover:bg-emerald-400 disabled:opacity-50"
               >
                 <LogIn className="h-5 w-5" />
-                {loading ? 'Ingresando...' : 'Iniciar Sesión'}
+                {loading ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
           </>
         ) : (
           <>
-            <p className="mb-4 text-center text-xs text-slate-400">Ingresa el código único de tu propiedad para ver su estado de cuenta.</p>
+            <p className="mb-4 text-center text-xs text-slate-400">Enter your property's access code to view its account statement.</p>
 
             {ownerError && (
               <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400">
@@ -145,7 +145,7 @@ export default function Login({ onLoginSuccess }) {
 
             <form onSubmit={handleOwnerSubmit} className="space-y-4">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-300">Código de Propiedad</label>
+                <label className="mb-1 block text-xs font-medium text-slate-300">Property Access Code</label>
                 <div className="relative">
                   <KeyRound className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
                   <input
@@ -153,7 +153,7 @@ export default function Login({ onLoginSuccess }) {
                     required
                     value={ownerCode}
                     onChange={(e) => setOwnerCode(e.target.value.toUpperCase())}
-                    placeholder="Ej. AB12CD"
+                    placeholder="e.g. AB12CD"
                     className="w-full rounded-xl border border-slate-700 bg-slate-900/50 py-2.5 pl-10 pr-4 text-white placeholder-slate-500 font-mono tracking-widest focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
@@ -165,7 +165,7 @@ export default function Login({ onLoginSuccess }) {
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 font-semibold text-slate-950 transition-all hover:bg-emerald-400 disabled:opacity-50"
               >
                 <LogIn className="h-5 w-5" />
-                {ownerLoading ? 'Verificando...' : 'Ver mi Estado de Cuenta'}
+                {ownerLoading ? 'Verifying...' : 'View Account Statement'}
               </button>
             </form>
           </>

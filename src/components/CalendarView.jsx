@@ -1,7 +1,10 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { db } from '../firebase/config'
 import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore'
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, X, Trash2, Cake, Home, Users as UsersIcon } from 'lucide-react'
+import { getCostaRicaDate } from '../utils/formValues'
+import DateRangePicker from './DateRangePicker'
+import HouseSelectionNotice from './HouseSelectionNotice'
 
 const VISIT_TYPE_COLORS = {
   owner: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
@@ -79,29 +82,31 @@ function buildMonthGrid(year, month) {
 export default function CalendarView({ role, ownerPropertyId }) {
   const canManage = role === 'admin' || (role === 'owner' && Boolean(ownerPropertyId))
   const isOwnerView = role === 'owner'
+  const today = new Date()
+  const todayISO = getCostaRicaDate(today)
+  const [year, month] = todayISO.split('-').map(Number)
   const visitTypeLabels = {
     owner: isOwnerView ? 'Owner' : 'Dueño',
     rental: isOwnerView ? 'Rental (Airbnb, etc.)' : 'Alquiler (Airbnb, etc.)',
   }
-  const today = new Date()
-  const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
+  const [cursor, setCursor] = useState(new Date(year, month - 1, 1))
   const [properties, setProperties] = useState([])
   const [visits, setVisits] = useState([])
   const [birthdays, setBirthdays] = useState([])
   const [calendarPropertyId, setCalendarPropertyId] = useState(ownerPropertyId || '')
   const [loading, setLoading] = useState(true)
-  const [selectedDate, setSelectedDate] = useState(toISODate(today))
+  const [selectedDate, setSelectedDate] = useState(todayISO)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
 
   const [propertyId, setPropertyId] = useState(ownerPropertyId || '')
   const [visitType, setVisitType] = useState('owner')
   const [guestName, setGuestName] = useState('')
-  const [startDate, setStartDate] = useState(toISODate(today))
-  const [endDate, setEndDate] = useState(toISODate(today))
-  const endDateInputRef = useRef(null)
+  const [startDate, setStartDate] = useState(todayISO)
+  const [endDate, setEndDate] = useState(todayISO)
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showHouseWarning, setShowHouseWarning] = useState(false)
 
   const fetchData = async () => {
     setLoading(true)
@@ -177,12 +182,14 @@ export default function CalendarView({ role, ownerPropertyId }) {
 
   const handleOpenCreate = () => {
     setEditingId(null)
+    setShowHouseWarning(false)
     resetForm()
     setIsModalOpen(true)
   }
 
   const handleOpenEdit = (v) => {
     setEditingId(v.id)
+    setShowHouseWarning(false)
     setPropertyId(v.propertyId || '')
     setVisitType(v.type || 'owner')
     setGuestName(v.guestName || '')
@@ -194,7 +201,11 @@ export default function CalendarView({ role, ownerPropertyId }) {
 
   const handleSave = async (e) => {
     e.preventDefault()
-    if (!propertyId || !startDate || !endDate) return
+    if (!propertyId) {
+      setShowHouseWarning(true)
+      return
+    }
+    if (!startDate || !endDate) return
     if (endDate < startDate) {
       alert(isOwnerView ? 'The end date cannot be before the start date.' : 'La fecha final no puede ser anterior a la fecha inicial.')
       return
@@ -362,7 +373,7 @@ export default function CalendarView({ role, ownerPropertyId }) {
                               isSelected ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-700/60 bg-slate-900/40 hover:bg-slate-900'
                             } ${isCurrentMonth ? '' : 'opacity-40'}`}
                           >
-                            <span className={`absolute left-1 top-1 text-sm font-bold ${iso === toISODate(today) ? 'text-emerald-400' : 'text-slate-200'}`}>{d.getDate()}</span>
+                            <span className={`absolute left-1 top-1 text-sm font-bold ${iso === todayISO ? 'text-emerald-400' : 'text-slate-200'}`}>{d.getDate()}</span>
                           </button>
                         )
                       })}
@@ -478,6 +489,7 @@ export default function CalendarView({ role, ownerPropertyId }) {
             </div>
 
             <form onSubmit={handleSave} className="space-y-3 text-xs">
+              {showHouseWarning && <HouseSelectionNotice isEnglish={isOwnerView} />}
               <div>
                 <label className="text-slate-300 block mb-1">{isOwnerView ? 'House / Property' : 'Casa / Propiedad'}</label>
                 {ownerPropertyId ? (
@@ -485,7 +497,14 @@ export default function CalendarView({ role, ownerPropertyId }) {
                     {properties.find(p => p.id === ownerPropertyId)?.name || (isOwnerView ? 'Your house' : 'Tu casa')}
                   </div>
                 ) : (
-                  <select required value={propertyId} onChange={e => setPropertyId(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none">
+                  <select
+                    value={propertyId}
+                    onChange={e => {
+                      setPropertyId(e.target.value)
+                      setShowHouseWarning(false)
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:outline-none"
+                  >
                     <option value="">Selecciona una casa...</option>
                     {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
@@ -515,30 +534,14 @@ export default function CalendarView({ role, ownerPropertyId }) {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-300 block mb-1">{isOwnerView ? 'Start Date' : 'Fecha Inicio'}</label>
-                  <input
-                    type="date"
-                    required
-                    value={startDate}
-                    onChange={e => {
-                      const nextStartDate = e.target.value
-                      setStartDate(nextStartDate)
-                      if (endDate < nextStartDate) setEndDate(nextStartDate)
-                      try {
-                        endDateInputRef.current?.showPicker()
-                      } catch {
-                        endDateInputRef.current?.focus()
-                      }
-                    }}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-300 block mb-1">{isOwnerView ? 'End Date' : 'Fecha Fin'}</label>
-                  <input ref={endDateInputRef} type="date" required min={startDate} value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white" />
-                </div>
+              <div>
+                <label className="text-slate-300 block mb-1">{isOwnerView ? 'Dates' : 'Fechas'}</label>
+                <DateRangePicker
+                  locale={isOwnerView ? 'en' : 'es'}
+                  startDate={startDate}
+                  endDate={endDate}
+                  onChange={(s, e) => { setStartDate(s); setEndDate(e) }}
+                />
               </div>
 
               <div>
@@ -546,7 +549,17 @@ export default function CalendarView({ role, ownerPropertyId }) {
                 <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white" />
               </div>
 
-              <button type="submit" disabled={saving} className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-2.5 rounded-xl text-sm mt-2 disabled:opacity-50">
+              <button
+                type="submit"
+                onClick={(e) => {
+                  if (!propertyId) {
+                    e.preventDefault()
+                    setShowHouseWarning(true)
+                  }
+                }}
+                disabled={saving}
+                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-2.5 rounded-xl text-sm mt-2 disabled:opacity-50"
+              >
                 {saving ? (isOwnerView ? 'Saving...' : 'Guardando...') : (isOwnerView ? 'Save Visit' : 'Guardar Visita')}
               </button>
             </form>
