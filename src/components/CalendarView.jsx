@@ -11,6 +11,8 @@ const VISIT_TYPE_COLORS = {
   rental: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
 }
 
+const BLOCK_EVENT_COLOR = 'bg-rose-500/15 text-rose-200 border-rose-500/40'
+
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 // Paleta para diferenciar casas en el calendario; cada propertyId siempre cae en el mismo color (hash determinístico)
@@ -89,6 +91,10 @@ export default function CalendarView({ role, ownerPropertyId }) {
     owner: isOwnerView ? 'Owner' : 'Dueño',
     rental: isOwnerView ? 'Rental (Airbnb, etc.)' : 'Alquiler (Airbnb, etc.)',
   }
+  const eventKindLabels = {
+    visit: isOwnerView ? 'Visit' : 'Visita',
+    block: isOwnerView ? 'Block' : 'Bloqueo',
+  }
   const [cursor, setCursor] = useState(new Date(year, month - 1, 1))
   const [properties, setProperties] = useState([])
   const [visits, setVisits] = useState([])
@@ -100,6 +106,7 @@ export default function CalendarView({ role, ownerPropertyId }) {
   const [editingId, setEditingId] = useState(null)
 
   const [propertyId, setPropertyId] = useState(ownerPropertyId || '')
+  const [eventKind, setEventKind] = useState('visit')
   const [visitType, setVisitType] = useState('owner')
   const [guestName, setGuestName] = useState('')
   const [startDate, setStartDate] = useState(todayISO)
@@ -173,6 +180,7 @@ export default function CalendarView({ role, ownerPropertyId }) {
 
   const resetForm = () => {
     setPropertyId(ownerPropertyId || '')
+    setEventKind('visit')
     setVisitType('owner')
     setGuestName('')
     setStartDate(selectedDate)
@@ -191,6 +199,7 @@ export default function CalendarView({ role, ownerPropertyId }) {
     setEditingId(v.id)
     setShowHouseWarning(false)
     setPropertyId(v.propertyId || '')
+    setEventKind(v.eventKind === 'block' ? 'block' : 'visit')
     setVisitType(v.type || 'owner')
     setGuestName(v.guestName || '')
     setStartDate(v.startDate || selectedDate)
@@ -214,8 +223,9 @@ export default function CalendarView({ role, ownerPropertyId }) {
     try {
       const payload = {
         propertyId,
-        type: visitType,
-        guestName: guestName.trim(),
+        eventKind,
+        type: eventKind === 'visit' ? visitType : null,
+        guestName: eventKind === 'visit' ? guestName.trim() : '',
         startDate,
         endDate,
         notes: notes.trim(),
@@ -257,7 +267,7 @@ export default function CalendarView({ role, ownerPropertyId }) {
           </div>
           <div>
             <h2 className="text-lg font-bold text-white">{isOwnerView ? 'Calendar' : 'Calendario'}</h2>
-            <p className="text-xs text-slate-400">{isOwnerView ? 'Owner/renter visits and birthdays for your house' : 'Visitas de dueños/inquilinos y cumpleaños por casa'}</p>
+            <p className="text-xs text-slate-400">{isOwnerView ? 'Visits, property blocks and birthdays for your house' : 'Visitas, bloqueos y cumpleaños por casa'}</p>
           </div>
         </div>
 
@@ -287,7 +297,7 @@ export default function CalendarView({ role, ownerPropertyId }) {
               onClick={handleOpenCreate}
               className="ml-2 flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 rounded-xl text-xs font-semibold transition-all"
             >
-              <Plus className="h-4 w-4" /> {isOwnerView ? 'Add Visit' : 'Agregar Visita'}
+              <Plus className="h-4 w-4" /> {isOwnerView ? 'Add' : 'Agregar'}
             </button>
           )}
         </div>
@@ -398,8 +408,12 @@ export default function CalendarView({ role, ownerPropertyId }) {
                         }
                         const v = bar.visit
                         const property = properties.find(p => p.id === v.propertyId)
-                        const label = `${property?.name || (isOwnerView ? 'House' : 'Casa')}${v.guestName ? ` · ${v.guestName}` : ''}`
-                        const barClasses = getPropertyBarClasses(v.propertyId)
+                        const propertyLabel = property?.name || (isOwnerView ? 'House' : 'Casa')
+                        const isBlock = v.eventKind === 'block'
+                        const label = isBlock
+                          ? `${eventKindLabels.block} · ${propertyLabel}`
+                          : `${propertyLabel}${v.guestName ? ` · ${v.guestName}` : ''}`
+                        const barClasses = isBlock ? 'bg-rose-700 text-white' : getPropertyBarClasses(v.propertyId)
                         return (
                           <button
                             key={bar.id}
@@ -407,7 +421,7 @@ export default function CalendarView({ role, ownerPropertyId }) {
                             onClick={() => setSelectedDate(toISODate(week[Math.max(bar.startIdx, 0)]))}
                             className={`pointer-events-auto absolute flex h-4.5 items-center gap-1 overflow-hidden text-[10px] font-semibold leading-4.5 shadow-sm ${barClasses} ${bar.isStart ? 'rounded-l-md pl-1.5' : 'pl-1.5'} ${bar.isEnd ? 'rounded-r-md pr-1.5' : 'pr-1.5'}`}
                             style={{ left: `calc(${leftPct}% + 3px)`, width: `calc(${widthPct}% - 6px)`, top: `${top}px` }}
-                            title={`${label} (${v.startDate} ${isOwnerView ? 'to' : 'a'} ${v.endDate})`}
+                            title={`${label}${v.notes ? ` · ${v.notes}` : ''} (${v.startDate} ${isOwnerView ? 'to' : 'a'} ${v.endDate})`}
                           >
                             {bar.isStart && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300 ring-1 ring-black/30" />}
                             <span className="flex-1 truncate">{label}</span>
@@ -427,15 +441,16 @@ export default function CalendarView({ role, ownerPropertyId }) {
           <h3 className="text-sm font-bold text-white">{selectedDate}</h3>
 
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Home className="h-3.5 w-3.5" /> {isOwnerView ? 'Visits' : 'Visitas'}</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Home className="h-3.5 w-3.5" /> {isOwnerView ? 'Events' : 'Eventos'}</p>
             {selectedDayEvents.dayVisits.length === 0 ? (
-              <p className="text-xs text-slate-500">{isOwnerView ? 'No visits scheduled.' : 'Sin visitas programadas.'}</p>
+              <p className="text-xs text-slate-500">{isOwnerView ? 'No events scheduled.' : 'Sin eventos programados.'}</p>
             ) : (
               <div className="space-y-2">
                 {selectedDayEvents.dayVisits.map(v => {
                   const property = properties.find(p => p.id === v.propertyId)
-                  const typeLabel = visitTypeLabels[v.type] || visitTypeLabels.owner
-                  const typeColor = VISIT_TYPE_COLORS[v.type] || VISIT_TYPE_COLORS.owner
+                  const isBlock = v.eventKind === 'block'
+                  const typeLabel = isBlock ? eventKindLabels.block : visitTypeLabels[v.type] || visitTypeLabels.owner
+                  const typeColor = isBlock ? BLOCK_EVENT_COLOR : VISIT_TYPE_COLORS[v.type] || VISIT_TYPE_COLORS.owner
                   return (
                     <div key={v.id} className={`rounded-xl border p-2.5 text-xs ${typeColor}`}>
                       <div className="flex items-center justify-between">
@@ -483,7 +498,7 @@ export default function CalendarView({ role, ownerPropertyId }) {
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-700 pb-3">
               <h3 className="font-bold text-white text-base flex items-center gap-2">
-                <UsersIcon className="h-5 w-5 text-emerald-400" /> {editingId ? (isOwnerView ? 'Edit Visit' : 'Editar Visita') : (isOwnerView ? 'New Visit' : 'Nueva Visita')}
+                <UsersIcon className="h-5 w-5 text-emerald-400" /> {editingId ? (isOwnerView ? 'Edit Event' : 'Editar evento') : (isOwnerView ? 'New Event' : 'Nuevo evento')}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
@@ -512,22 +527,44 @@ export default function CalendarView({ role, ownerPropertyId }) {
               </div>
 
               <div>
-                <label className="text-slate-300 block mb-1">{isOwnerView ? 'Visit Type' : 'Tipo de Visita'}</label>
+                <label className="text-slate-300 block mb-1">{isOwnerView ? 'Event Type' : 'Tipo de evento'}</label>
                 <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-700">
-                  {Object.keys(VISIT_TYPE_COLORS).map((key) => (
+                  {['visit', 'block'].map(kind => (
                     <button
-                      key={key}
+                      key={kind}
                       type="button"
-                      onClick={() => setVisitType(key)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${visitType === key ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                      aria-pressed={eventKind === kind}
+                      onClick={() => {
+                        setEventKind(kind)
+                        if (kind === 'block') setGuestName('')
+                      }}
+                      className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${eventKind === kind ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
                     >
-                      {visitTypeLabels[key]}
+                      {eventKindLabels[kind]}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {visitType === 'rental' && (
+              {eventKind === 'visit' && (
+                <div>
+                  <label className="text-slate-300 block mb-1">{isOwnerView ? 'Visit Category' : 'Tipo de visita'}</label>
+                  <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-700">
+                    {Object.keys(VISIT_TYPE_COLORS).map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setVisitType(key)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${visitType === key ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        {visitTypeLabels[key]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {eventKind === 'visit' && visitType === 'rental' && (
                 <div>
                   <label className="text-slate-300 block mb-1">{isOwnerView ? 'Guest Name (Optional)' : 'Nombre del Inquilino (Opcional)'}</label>
                   <input type="text" value={guestName} onChange={e => setGuestName(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white" />
@@ -545,7 +582,11 @@ export default function CalendarView({ role, ownerPropertyId }) {
               </div>
 
               <div>
-                <label className="text-slate-300 block mb-1">{isOwnerView ? 'Notes (Optional)' : 'Notas (Opcional)'}</label>
+                <label className="text-slate-300 block mb-1">
+                  {isOwnerView
+                    ? (eventKind === 'block' ? 'Reason / Notes (Optional)' : 'Notes (Optional)')
+                    : (eventKind === 'block' ? 'Motivo / Notas (Opcional)' : 'Notas (Opcional)')}
+                </label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-white" />
               </div>
 
