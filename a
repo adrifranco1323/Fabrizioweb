@@ -27,6 +27,20 @@ service cloud.firestore {
         && request.auth.token.propertyId == propertyId;
     }
 
+    function isOwnerOfAccount(accountId) {
+      return signedIn()
+        && request.auth.token.role == 'owner'
+        && request.auth.token.get('accountId', '') == accountId;
+    }
+
+    // El dueño de una cuenta compartida lee solo las casas que hoy integran su cuenta
+    function propertyInOwnerAccount(propertyId) {
+      return signedIn()
+        && request.auth.token.role == 'owner'
+        && request.auth.token.get('accountId', '') != ''
+        && propertyId in get(/databases/$(database)/documents/sharedAccounts/$(request.auth.token.accountId)).data.propertyIds;
+    }
+
     function canReadCalendar() {
       return isAdmin() || isAssistant() || isMaid();
     }
@@ -54,8 +68,19 @@ service cloud.firestore {
     }
 
     match /propertyStatementDirectory/{propertyId} {
-      allow read: if isAdmin() || isAssistant() || isOwnerOf(propertyId);
+      allow read: if isAdmin() || isAssistant() || isOwnerOf(propertyId) || propertyInOwnerAccount(propertyId);
       allow write: if isAdmin();
+    }
+
+    match /sharedAccounts/{accountId} {
+      allow read: if isAdmin() || isOwnerOfAccount(accountId);
+      allow write: if isAdmin();
+    }
+
+    match /sharedAccountIncomes/{incomeId} {
+      allow read: if isAdmin() || isOwnerOfAccount(resource.data.accountId);
+      allow create: if isAdmin() && request.resource.data.accountId is string;
+      allow update, delete: if isAdmin();
     }
 
     match /providerDirectory/{providerId} {
@@ -87,14 +112,16 @@ service cloud.firestore {
     }
 
     match /incomes/{incomeId} {
-      allow read: if isAdmin() || isAssistant() || isOwnerOf(resource.data.propertyId);
+      allow read: if isAdmin() || isAssistant() || isOwnerOf(resource.data.propertyId)
+        || propertyInOwnerAccount(resource.data.propertyId);
       allow create: if canManageTransactions()
         && request.resource.data.propertyId is string;
       allow update, delete: if isAdmin();
     }
 
     match /expenses/{expenseId} {
-      allow read: if isAdmin() || isAssistant() || isOwnerOf(resource.data.propertyId);
+      allow read: if isAdmin() || isAssistant() || isOwnerOf(resource.data.propertyId)
+        || propertyInOwnerAccount(resource.data.propertyId);
       allow create: if canManageTransactions()
         && request.resource.data.propertyId is string;
       allow update, delete: if isAdmin();

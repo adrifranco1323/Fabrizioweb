@@ -106,10 +106,16 @@ export const ownerSignIn = onCall(async (request) => {
   if (!code) throw new HttpsError("invalid-argument", "Falta el código de acceso.");
   const db = getFirestore(getApp(), "fabriziodb");
   const propertyQuery = await db.collection("properties").where("accessCode", "==", code).limit(1).get();
-  if (propertyQuery.empty) throw new HttpsError("permission-denied", "Código inválido.");
-  const propertyId = propertyQuery.docs[0].id;
-  const token = await getAuth().createCustomToken(`owner_${propertyId}`, {role: "owner", propertyId});
-  return {token, propertyId};
+  if (!propertyQuery.empty) {
+    const propertyId = propertyQuery.docs[0].id;
+    const token = await getAuth().createCustomToken(`owner_${propertyId}`, {role: "owner", propertyId});
+    return {token, propertyId};
+  }
+  const accountQuery = await db.collection("sharedAccounts").where("accessCode", "==", code).limit(1).get();
+  if (accountQuery.empty) throw new HttpsError("permission-denied", "Código inválido.");
+  const accountId = accountQuery.docs[0].id;
+  const token = await getAuth().createCustomToken(`owner_account_${accountId}`, {role: "owner", accountId});
+  return {token, accountId};
 });
 
 export const migrateCalendarData = onCall(async (request) => {

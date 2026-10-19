@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import OwnerStatementView from './OwnerStatementView'
+import OwnerAccountStatementView from './OwnerAccountStatementView'
 import CalendarView from './CalendarView'
 import ClientProfile from './ClientProfile'
 import { PieChart, CalendarDays, Users, LogOut } from 'lucide-react'
@@ -10,14 +11,16 @@ const TABS = [
   { key: 'clientProfile', label: 'Get to Know Your Client', icon: Users },
 ]
 
-export default function OwnerApp({ propertyId, onLogout }) {
+export default function OwnerApp({ propertyId, accountId, onLogout }) {
   const [activeTab, setActiveTab] = useState('statement')
+  // Las cuentas compartidas solo exponen el estado de cuenta; calendario y perfil son por casa
+  const tabs = accountId ? TABS.filter(tab => tab.key === 'statement') : TABS
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700 bg-slate-800/60 p-3">
         <nav className="flex flex-wrap gap-2">
-          {TABS.map(({ key, label, icon: Icon }) => (
+          {tabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
@@ -37,9 +40,11 @@ export default function OwnerApp({ propertyId, onLogout }) {
         </button>
       </div>
 
-      {activeTab === 'statement' && <OwnerStatementView propertyId={propertyId} onLogout={onLogout} hideLogout />}
-      {activeTab === 'calendar' && <div className="p-4 md:p-8"><CalendarView role="owner" ownerPropertyId={propertyId} /></div>}
-      {activeTab === 'clientProfile' && <div className="p-4 md:p-8"><ClientProfile role="owner" ownerPropertyId={propertyId} /></div>}
+      {activeTab === 'statement' && (accountId
+        ? <OwnerAccountStatementView accountId={accountId} />
+        : <OwnerStatementView propertyId={propertyId} onLogout={onLogout} hideLogout />)}
+      {!accountId && activeTab === 'calendar' && <div className="p-4 md:p-8"><CalendarView role="owner" ownerPropertyId={propertyId} /></div>}
+      {!accountId && activeTab === 'clientProfile' && <div className="p-4 md:p-8"><ClientProfile role="owner" ownerPropertyId={propertyId} /></div>}
     </div>
   )
 }

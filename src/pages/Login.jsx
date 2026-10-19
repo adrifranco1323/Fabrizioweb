@@ -43,13 +43,17 @@ export default function Login({ onLoginSuccess }) {
     try {
       const verifyOwnerCode = httpsCallable(functions, 'ownerSignIn')
       const result = await verifyOwnerCode({ accessCode: normalizedCode })
-      const { token, propertyId } = result.data
-      localStorage.setItem('ownerPropertyId', propertyId)
+      const { token, propertyId, accountId } = result.data
+      localStorage.removeItem('ownerPropertyId')
+      localStorage.removeItem('ownerAccountId')
+      if (accountId) localStorage.setItem('ownerAccountId', accountId)
+      else localStorage.setItem('ownerPropertyId', propertyId)
       const userCredential = await signInWithCustomToken(auth, token)
       if (onLoginSuccess) onLoginSuccess(userCredential.user)
     } catch (err) {
       console.error(err)
       localStorage.removeItem('ownerPropertyId')
+      localStorage.removeItem('ownerAccountId')
       setOwnerError('Could not verify the code. Please try again.')
     } finally {
       setOwnerLoading(false)

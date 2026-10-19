@@ -14,13 +14,15 @@ import UsersList from './components/UsersList'
 import CalendarView from './components/CalendarView'
 import OwnerApp from './components/OwnerApp'
 import ClientProfile from './components/ClientProfile'
-import { Home, Receipt, PieChart, Users, FileText, Contact, Menu, X, LogOut, UserCog, CalendarDays } from 'lucide-react'
+import SharedAccounts from './components/SharedAccounts'
+import { Home, Receipt, PieChart, Users, FileText, Contact, Menu, X, LogOut, UserCog, CalendarDays, Layers } from 'lucide-react'
 
 const NAV_ITEMS = [
   { key: 'statements', label: 'Estados de Cuenta', icon: PieChart, roles: ['admin', 'assistant'] },
   { key: 'expenses', label: 'Movimientos', icon: Receipt, roles: ['admin', 'assistant'] },
   { key: 'properties', label: 'Casas', icon: Home, roles: ['admin'] },
   { key: 'clients', label: 'Clientes y Carros', icon: Contact, roles: ['admin'] },
+  { key: 'sharedAccounts', label: 'Cuentas compartidas', icon: Layers, roles: ['admin'] },
   { key: 'contracts', label: 'Contratos y Servicios', icon: FileText, roles: ['admin'] },
   { key: 'providers', label: 'Proveedores', icon: Users, roles: ['admin', 'assistant'] },
   { key: 'calendar', label: 'Calendario', icon: CalendarDays, roles: ['admin', 'assistant', 'maid'] },
@@ -40,7 +42,7 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       // Una sesión anónima sin propiedad asociada es inválida (código no verificado)
-      if (currentUser?.isAnonymous && !localStorage.getItem('ownerPropertyId')) {
+      if (currentUser?.isAnonymous && !localStorage.getItem('ownerPropertyId') && !localStorage.getItem('ownerAccountId')) {
         await signOut(auth)
         setUser(null)
         setRole(null)
@@ -233,11 +235,14 @@ export default function App() {
 
   if (user.isAnonymous || role === 'owner') {
     const ownerPropertyId = localStorage.getItem('ownerPropertyId')
+    const ownerAccountId = localStorage.getItem('ownerAccountId')
     return (
       <OwnerApp
         propertyId={ownerPropertyId}
+        accountId={ownerAccountId}
         onLogout={() => {
           localStorage.removeItem('ownerPropertyId')
+          localStorage.removeItem('ownerAccountId')
           signOut(auth)
         }}
       />
@@ -342,6 +347,7 @@ export default function App() {
           {safeActiveTab === 'expenses' && <ExpenseForm role={role} />}
           {safeActiveTab === 'properties' && <PropertiesList />}
           {safeActiveTab === 'clients' && <ClientsList />}
+          {safeActiveTab === 'sharedAccounts' && <SharedAccounts />}
           {safeActiveTab === 'contracts' && <ContractsInfo />}
           {safeActiveTab === 'providers' && <ProvidersList role={role} />}
           {safeActiveTab === 'calendar' && <CalendarView role={role} />}
