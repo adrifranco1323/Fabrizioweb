@@ -10,3 +10,14 @@ input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+/* iOS Safari: los inputs de fecha nativos ignoran el ancho del contenedor y se salen de la tarjeta */
+input[type='date'],
+input[type='month'],
+input[type='time'] {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
