@@ -271,6 +271,7 @@ export default function ExpenseForm({ onExpenseAdded }) {
           </div>
         </div>
 
+        {currency === 'CRC' && (
         <div className="rounded-xl bg-slate-900 p-3 border border-slate-700/60 flex items-center justify-between text-xs text-slate-300">
           <div>
             <span className="text-slate-500">Tipo de Cambio: </span>
@@ -287,6 +288,7 @@ export default function ExpenseForm({ onExpenseAdded }) {
             <div>Total Dólares: <span className="font-bold text-emerald-400">$ {calculatedUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span></div>
           </div>
         </div>
+        )}
 
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-300">Comprobante / Recibo (Máx. 3 archivos, cualquier documento)</label>
