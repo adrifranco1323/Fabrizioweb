@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import SharedAccountPdfTemplate, { exportElementToPdf } from './SharedAccountPdf'
 import { db } from '../firebase/config'
 import {
   collection, getDocs, query, where, addDoc, updateDoc, deleteDoc, doc, writeBatch, serverTimestamp,
@@ -9,7 +10,7 @@ import {
   validateAccount, buildIncome, computeAccountStatement, generateAccessCode,
 } from '../utils/sharedAccounts'
 import {
-  ArrowDownLeft, ArrowUpRight, Check, Copy, Home, KeyRound, Layers, Pencil, Plus, RefreshCw, Trash2, Wallet, X,
+  ArrowDownLeft, ArrowUpRight, Check, Copy, Home, KeyRound, Layers, Pencil, Plus, Printer, RefreshCw, Trash2, Wallet, X,
 } from 'lucide-react'
 
 const money = value => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -29,6 +30,9 @@ export default function SharedAccounts() {
   const [loadingMovements, setLoadingMovements] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [copiedCode, setCopiedCode] = useState('')
+  const [providers, setProviders] = useState([])
+  const [generatingPdf, setGeneratingPdf] = useState(false)
+  const pdfRef = useRef(null)
 
   const [editor, setEditor] = useState(null)
   const [editorError, setEditorError] = useState('')
@@ -117,6 +121,30 @@ export default function SharedAccounts() {
   const statement = useMemo(() => selectedAccount
     ? computeAccountStatement({ account: selectedAccount, incomes, houseIncomes, expenses, startDate, endDate })
     : null, [selectedAccount, incomes, houseIncomes, expenses, startDate, endDate])
+
+  useEffect(() => {
+    getDocs(collection(db, 'providerDirectory'))
+      .then(snap => setProviders(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+      .catch(error => console.error('Error al cargar proveedores:', error))
+  }, [])
+
+  const providerName = id => providers.find(p => p.id === id)?.name || 'N/A'
+
+  const handleDownloadPdf = async () => {
+    if (!pdfRef.current || !selectedAccount) return
+    setGeneratingPdf(true)
+    try {
+      await exportElementToPdf(
+        pdfRef.current,
+        `Account_Statement_${selectedAccount.name.replace(/\s+/g, '_')}_${startDate}_to_${endDate}.pdf`,
+      )
+    } catch (error) {
+      console.error('Error al generar el PDF:', error)
+      alert('No se pudo generar el PDF.')
+    } finally {
+      setGeneratingPdf(false)
+    }
+  }
 
   const takenCodes = (ignoreAccountId = null) => [
     ...propertyCodes,
@@ -297,9 +325,27 @@ export default function SharedAccounts() {
               <label className="mb-1 block text-xs font-medium text-slate-300">Rango de fechas</label>
               <DateRangePicker locale="en" startDate={startDate} endDate={endDate} onChange={(s, e) => { setStartDate(s); setEndDate(e) }} />
             </div>
-            <p className="pb-2 text-xs text-slate-400">
-              {selectedAccount.name}: <strong className="text-white">{selectedAccount.propertyIds.map(propertyName).join(' + ')}</strong>
-            </p>
+            <div className="flex items-center justify-between gap-3 pb-1 md:flex-col md:items-end">
+              <p className="text-xs text-slate-400">
+                {selectedAccount.name}: <strong className="text-white">{selectedAccount.propertyIds.map(propertyName).join(' + ')}</strong>
+              </p>
+              <button
+                onClick={handleDownloadPdf}
+                disabled={generatingPdf || loadingMovements}
+                className="flex shrink-0 items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-lg transition-all hover:bg-emerald-400 disabled:opacity-50"
+              >
+                <Printer className="h-4 w-4" /> {generatingPdf ? 'Generando PDF...' : 'Descargar PDF'}
+              </button>
+            </div>
+            <SharedAccountPdfTemplate
+              ref={pdfRef}
+              account={selectedAccount}
+              statement={statement}
+              nameOf={propertyName}
+              providerName={providerName}
+              startDate={startDate}
+              endDate={endDate}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">

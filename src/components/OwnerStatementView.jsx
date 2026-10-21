@@ -64,7 +64,9 @@ export default function OwnerStatementView({ propertyId, onLogout, hideLogout = 
           setOwnerName(data.ownerName || '')
         }
         const provSnap = await getDocs(collection(db, 'providerDirectory'))
-        setProviders(provSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+        setProviders(provSnap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en', { sensitivity: 'base' })))
       } catch (error) {
         console.error('Error loading property:', error)
       }

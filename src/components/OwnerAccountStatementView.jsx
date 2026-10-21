@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import SharedAccountPdfTemplate, { exportElementToPdf } from './SharedAccountPdf'
 import { db } from '../firebase/config'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import DateRangePicker from './DateRangePicker'
 import { getCostaRicaDate, getCostaRicaMonthStart } from '../utils/formValues'
 import { computeAccountStatement } from '../utils/sharedAccounts'
-import { ArrowDownLeft, ArrowUpRight, ExternalLink, FileText, Home, Wallet } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, ExternalLink, FileText, Home, Printer, Wallet } from 'lucide-react'
 
 const money = value => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const signed = value => `${value >= 0 ? '+' : '-'} $ ${money(Math.abs(value))}`
@@ -32,6 +33,9 @@ function Receipts({ item }) {
 export default function OwnerAccountStatementView({ accountId }) {
   const [account, setAccount] = useState(null)
   const [propertyNames, setPropertyNames] = useState({})
+  const [providers, setProviders] = useState([])
+  const [generatingPdf, setGeneratingPdf] = useState(false)
+  const pdfRef = useRef(null)
   const [accountIncomes, setAccountIncomes] = useState([])
   const [houseIncomes, setHouseIncomes] = useState([])
   const [expenses, setExpenses] = useState([])
@@ -52,13 +56,15 @@ export default function OwnerAccountStatementView({ accountId }) {
         const ids = loaded.propertyIds || []
         const byProperty = name => Promise.all(ids.map(id => getDocs(query(collection(db, name), where('propertyId', '==', id)))))
         const toList = snaps => snaps.flatMap(snap => snap.docs.map(d => ({ id: d.id, ...d.data() })))
-        const [expenseSnaps, incomeSnaps, accountIncomeSnap, directorySnaps] = await Promise.all([
+        const [expenseSnaps, incomeSnaps, accountIncomeSnap, directorySnaps, providerSnap] = await Promise.all([
           byProperty('expenses'),
           byProperty('incomes'),
           getDocs(query(collection(db, 'sharedAccountIncomes'), where('accountId', '==', accountId))),
           Promise.all(ids.map(id => getDoc(doc(db, 'propertyStatementDirectory', id)))),
+          getDocs(collection(db, 'providerDirectory')).catch(() => null),
         ])
         if (cancelled) return
+        setProviders(providerSnap ? providerSnap.docs.map(d => ({ id: d.id, ...d.data() })) : [])
         setAccount(loaded)
         setExpenses(toList(expenseSnaps))
         setHouseIncomes(toList(incomeSnaps))
@@ -85,6 +91,19 @@ export default function OwnerAccountStatementView({ accountId }) {
   if (error || !account || !statement) return <p className="p-8 text-center text-sm text-red-300">{error || 'Account not available.'}</p>
 
   const nameOf = id => propertyNames[id] || 'Property'
+  const providerName = id => providers.find(p => p.id === id)?.name || 'N/A'
+  const handleDownloadPdf = async () => {
+    if (!pdfRef.current) return
+    setGeneratingPdf(true)
+    try {
+      await exportElementToPdf(pdfRef.current, `Account_Statement_${account.name.replace(/\s+/g, '_')}_${startDate}_to_${endDate}.pdf`)
+    } catch (err) {
+      console.error('Error generating PDF:', err)
+      alert('Could not generate the PDF.')
+    } finally {
+      setGeneratingPdf(false)
+    }
+  }
   const cards = [
     ['Opening Balance', statement.openingBalanceUSD, 'text-slate-100', `Balance before ${startDate}`],
     ['Income for the Period', statement.totalIncomeUSD, 'text-emerald-400', `${statement.periodIncomes.length} deposits recorded`],
@@ -96,13 +115,31 @@ export default function OwnerAccountStatementView({ accountId }) {
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
       <div className="space-y-4 rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-xl">
-        <div className="flex items-center gap-3 border-b border-slate-700/60 pb-4">
-          <div className="rounded-xl bg-emerald-500/10 p-2.5 text-emerald-400"><FileText className="h-6 w-6" /></div>
-          <div>
-            <h2 className="text-lg font-bold text-white">{account.name}</h2>
-            <p className="text-xs text-slate-400">Shared account · {account.propertyIds.map(nameOf).join(' + ')}</p>
+        <div className="flex items-center justify-between gap-3 border-b border-slate-700/60 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-emerald-500/10 p-2.5 text-emerald-400"><FileText className="h-6 w-6" /></div>
+            <div>
+              <h2 className="text-lg font-bold text-white">{account.name}</h2>
+              <p className="text-xs text-slate-400">Shared account · {account.propertyIds.map(nameOf).join(' + ')}</p>
+            </div>
           </div>
+          <button
+            onClick={handleDownloadPdf}
+            disabled={generatingPdf}
+            className="flex shrink-0 items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-lg transition-all hover:bg-emerald-400 disabled:opacity-50"
+          >
+            <Printer className="h-4 w-4" /> {generatingPdf ? 'Generating PDF...' : 'Download PDF'}
+          </button>
         </div>
+        <SharedAccountPdfTemplate
+          ref={pdfRef}
+          account={account}
+          statement={statement}
+          nameOf={nameOf}
+          providerName={providerName}
+          startDate={startDate}
+          endDate={endDate}
+        />
         <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-3">
           <div className="md:col-span-2">
             <label className="mb-1 block text-xs font-medium text-slate-300">Date Range</label>
