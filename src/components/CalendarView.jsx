@@ -494,8 +494,8 @@ export default function CalendarView({ role, ownerPropertyId }) {
       </div>
 
       {isModalOpen && canManage && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:items-center">
+          <div className="my-2 w-full max-w-md space-y-4 rounded-2xl border border-slate-700 bg-slate-800 p-4 shadow-2xl sm:my-4 sm:p-6">
             <div className="flex justify-between items-center border-b border-slate-700 pb-3">
               <h3 className="font-bold text-white text-base flex items-center gap-2">
                 <UsersIcon className="h-5 w-5 text-emerald-400" /> {editingId ? (isOwnerView ? 'Edit Event' : 'Editar evento') : (isOwnerView ? 'New Event' : 'Nuevo evento')}

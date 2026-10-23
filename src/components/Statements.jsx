@@ -935,21 +935,23 @@ export default function Statements({ role }) {
                 </div>
               </div>
 
-              <div className="rounded-xl bg-slate-900 p-3 border border-slate-700/60 flex items-center justify-between text-xs text-slate-300">
-                <div>
-                  <span className="text-slate-500">Exchange Rate: </span>
-                  <input
-                    type="number"
-                    value={editingItem.exchangeRate ?? ''}
-                    onChange={(e) => setEditingItem({ ...editingItem, exchangeRate: e.target.value })}
-                    className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-center font-semibold text-white ml-1 inline-block"
-                  />
+              {editingItem.currency === 'CRC' && (
+                <div className="rounded-xl bg-slate-900 p-3 border border-slate-700/60 flex items-center justify-between text-xs text-slate-300">
+                  <div>
+                    <span className="text-slate-500">Exchange Rate: </span>
+                    <input
+                      type="number"
+                      value={editingItem.exchangeRate ?? ''}
+                      onChange={(e) => setEditingItem({ ...editingItem, exchangeRate: e.target.value })}
+                      className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-center font-semibold text-white ml-1 inline-block"
+                    />
+                  </div>
+                  <div className="text-right">
+                    <div>Total Colones: <span className="font-bold text-emerald-400">₡ {calcEditCRC.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                    <div>Total Dollars: <span className="font-bold text-emerald-400">$ {calcEditUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span></div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div>Total Colones: <span className="font-bold text-emerald-400">₡ {calcEditCRC.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-                  <div>Total Dollars: <span className="font-bold text-emerald-400">$ {calcEditUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span></div>
-                </div>
-              </div>
+              )}
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-300">Receipts (Max. 3 files)</label>
